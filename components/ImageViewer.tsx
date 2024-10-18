@@ -25,7 +25,7 @@ const styles = StyleSheet.create({
      
     },
     text: {
-      color: '#fff',
+      color: '#333',
     },
     button:{
       fontSize:20,
@@ -34,10 +34,12 @@ const styles = StyleSheet.create({
     },
     imageContainer:{
       flex:1,
+      
     },
       image:{
-        width: 320,
-        height:440,
+        
+        width: 150,
+        height:150,
         borderRadius:18,
       }
   
