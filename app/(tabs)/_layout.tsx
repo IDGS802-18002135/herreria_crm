@@ -26,6 +26,15 @@ export default function TabLayout() {
             ),
              }}
         />
+        <Tabs.Screen 
+        name="welcome" 
+        options={{ 
+            title: 'Welcome',
+            tabBarIcon:({color,focused})=>(
+                <Ionicons name={focused ? 'home-sharp' : 'home-outline'} color={color} size={24} />
+            ),
+             }}
+        />
       
       <Tabs.Screen 
         name="index" 
@@ -44,8 +53,10 @@ export default function TabLayout() {
             <Ionicons name={focused ? 'information-circle' : 'information-circle-outline'} color={color} size={24}/>
           ),
         }}
+        
       />
     </Tabs>
     
   );
 }
+ 
