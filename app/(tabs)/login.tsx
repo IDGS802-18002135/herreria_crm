@@ -28,7 +28,7 @@ const Login = () => {
   // Función de login usando fetch
   const handleLogin = async () => {
     try {
-      const response = await fetch('http://localhost:5055/api/Usuario/login', {
+      const response = await fetch('http://10.16.14.126:5055/api/Usuario/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -46,7 +46,7 @@ const Login = () => {
         setUserData(data);
         Alert.alert('Login Successful', `Welcome ${data.nombre}`);
         //navigation.navigate('Welcome', { userData: data });
-        navigation.navigate('welcome',{
+        navigation.navigate('dashboard',{
                                         userData:data.nombre,
                                         otherParam: 'anything you want here',
                                       });

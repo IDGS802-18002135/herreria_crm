@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Picker } from 'react-native';
-
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView,  } from 'react-native';
+import { Picker } from "@react-native-picker/picker";
 const CalcularTiempoProduccion = () => {
   const [productos, setProductos] = useState<any[]>([]);
   const [selectedProductoId, setSelectedProductoId] = useState<number | null>(null);
@@ -12,7 +12,7 @@ const CalcularTiempoProduccion = () => {
   useEffect(() => {
     const fetchProductos = async () => {
       try {
-        const response = await fetch('http://localhost:5055/api/productos');
+        const response = await fetch('http://10.16.14.126:5055/api/productos');
         const data = await response.json();
         setProductos(data);
       } catch (error) {
@@ -46,7 +46,7 @@ const CalcularTiempoProduccion = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:5055/api/planificacion/calcularTiempoProduccion', {
+      const response = await fetch('http://10.16.14.126:5055/api/planificacion/calcularTiempoProduccion', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -76,12 +76,13 @@ const CalcularTiempoProduccion = () => {
     if (!selectedProductoId) return;
 
     try {
-      const produccionResponse = await fetch('http://localhost:5055/api/produccion/solicitarProduccion', {
+      const produccionResponse = await fetch('http://10.16.14.126:5055/api/produccion/solicitarProduccion', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          usuarioId: 1,
           FabricacionId: selectedProductoId,
           Cantidad: parseFloat(cantidad),
           Descripcion: "Producción generada desde la aplicación",
@@ -161,7 +162,7 @@ const CalcularTiempoProduccion = () => {
         {/* Mostrar resultados del cálculo */}
         {resultado && (
           <View style={styles.resultBox}>
-            <Text style={styles.resultText}>ID de Fabricación: {resultado.fabricacionId}</Text>
+           
             <Text style={styles.resultText}>Cantidad: {resultado.cantidad}</Text>
             <Text style={styles.resultText}>Tiempo Total en Horas: {resultado.tiempoTotalHoras}</Text>
             <Text style={styles.resultText}>Días Laborales: {resultado.diasLaborales}</Text>
@@ -183,7 +184,7 @@ const CalcularTiempoProduccion = () => {
           <Text style={styles.title}>Historial de Producción</Text>
           <View style={styles.table}>
             <View style={styles.tableHeader}>
-              <Text style={styles.headerCell}>Producto ID</Text>
+             
               <Text style={styles.headerCell}>Cantidad</Text>
               <Text style={styles.headerCell}>Horas</Text>
               <Text style={styles.headerCell}>Días</Text>
@@ -191,7 +192,7 @@ const CalcularTiempoProduccion = () => {
             </View>
             {historialProduccion.map((registro, index) => (
               <View key={index} style={styles.tableRow}>
-                <Text style={styles.cell}>{registro.productoId}</Text>
+               
                 <Text style={styles.cell}>{registro.cantidad}</Text>
                 <Text style={styles.cell}>{registro.tiempoTotalHoras}</Text>
                 <Text style={styles.cell}>{registro.diasLaborales}</Text>
