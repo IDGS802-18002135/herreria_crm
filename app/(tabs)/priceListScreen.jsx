@@ -1,18 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, FlatList, Text, StyleSheet, Button, TouchableOpacity, Modal, ScrollView, TextInput } from 'react-native';
 import ProductoCard from '../../components/ProductoCard';
 import { agregarProducto, calcularSubtotal, generarPDF } from '../../utils/productoUtils';
 
-const productosIniciales = [
-    { id: 1, nombre: "Puerta de hierro", precio: 1500, cantidad: 5,imagen:"https://ralfvanveen.com/wp-content/uploads/2021/06/Placeholder-_-Glossary-800x450.webp" },
-    { id: 2, nombre: "Reja de ventana", precio: 800, cantidad: 10,imagen:"https://ralfvanveen.com/wp-content/uploads/2021/06/Placeholder-_-Glossary-800x450.webp" },
-    { id: 3, nombre: "Barandal de escalera", precio: 1200, cantidad: 8,imagen:"https://ralfvanveen.com/wp-content/uploads/2021/06/Placeholder-_-Glossary-800x450.webp" },
-    { id: 4, nombre: "Reja", precio: 1200, cantidad: 8,imagen:"https://ralfvanveen.com/wp-content/uploads/2021/06/Placeholder-_-Glossary-800x450.webp" },
-    { id: 5, nombre: "Escalera", precio: 1200, cantidad: 8,imagen:"https://ralfvanveen.com/wp-content/uploads/2021/06/Placeholder-_-Glossary-800x450.webp" }
-];
-
 export default function ProductListScreen() {
-    const [productos, setProductos] = useState(productosIniciales);
+    const [productos, setProductos] = useState([]);
     const [productosSeleccionados, setProductosSeleccionados] = useState([]);
     const [mostrarLista, setMostrarLista] = useState(false);
     const [mostrarModal, setMostrarModal] = useState(false);
@@ -20,16 +12,55 @@ export default function ProductListScreen() {
     const [nombreEmpresa, setNombreEmpresa] = useState("");
     const [vendedor, setVendedor] = useState("");
     const [mostrarModalDatos, setMostrarModalDatos] = useState(false);
+    const [cotizacionesPendientes, setCotizacionesPendientes] = useState([]);
+    const [mostrarModalCotizaciones, setMostrarModalCotizaciones] = useState(false);
+
+    // Cargar productos desde la API
+    useEffect(() => {
+        fetch('http://192.168.0.108:5055/api/Productos')
+            .then((response) => response.json())
+            .then((data) => {
+                const productosConImagen = data.map((producto) => ({
+                    ...producto,
+                    imagen: producto.imagenProducto || "https://ralfvanveen.com/wp-content/uploads/2021/06/Placeholder-_-Glossary-800x450.webp"
+                }));
+                setProductos(productosConImagen);
+            })
+            .catch((error) => {
+                console.error('Error al cargar los productos:', error);
+            });
+    }, []);
 
     const handleAgregarProducto = (productoId, cantidad) => {
         agregarProducto(productoId, cantidad, productos, setProductos, setProductosSeleccionados);
-        
-    };  
+    };
+
+    const guardarCotizacion = () => {
+        const nuevaCotizacion = {
+            id: cotizacionesPendientes.length + 1,
+            nombreEmpresa,
+            vendedor,
+            productos: productosSeleccionados,
+            subtotal: calcularSubtotal(productosSeleccionados),
+            fecha: new Date().toLocaleDateString(),
+        };
+        setCotizacionesPendientes([...cotizacionesPendientes, nuevaCotizacion]);
+    };
 
     const handleGenerarPDF = () => {
         generarPDF(productosSeleccionados, nombreEmpresa, vendedor, calcularSubtotal);
-        setProductosSeleccionados([]);  // Limpia el carrito al generar la cotización
+        guardarCotizacion();
+        setProductosSeleccionados([]); // Limpia el carrito al generar la cotización
         setMostrarLista(false);
+        setMostrarModalDatos(false);
+    };
+
+    const autorizarCotizacion = (cotizacionId) => {
+        const cotizacionAutorizada = cotizacionesPendientes.find(c => c.id === cotizacionId);
+        if (cotizacionAutorizada) {
+            console.log("Cotización enviada a producción:", cotizacionAutorizada);
+        }
+        setCotizacionesPendientes(cotizacionesPendientes.filter(c => c.id !== cotizacionId));
     };
 
     return (
@@ -61,7 +92,6 @@ export default function ProductListScreen() {
                         </Text>
                     ))}
                     <Text style={styles.subtotal}>Subtotal: ${calcularSubtotal(productosSeleccionados)}</Text>
-                    
                     <View style={styles.buttonContainer}>
                         <Button title="Finalizar Compra" onPress={() => setMostrarModalDatos(true)} color="#4CAF50" />
                         <Button title="Generar Cotización" onPress={() => setMostrarModalDatos(true)} color="#2196F3" />
@@ -69,18 +99,38 @@ export default function ProductListScreen() {
                 </View>
             )}
 
+            <TouchableOpacity
+                style={styles.toggleButton}
+                onPress={() => setMostrarModalCotizaciones(true)}
+            >
+                <Text style={styles.toggleButtonText}>Ver Cotizaciones Pendientes</Text>
+            </TouchableOpacity>
+
             <Modal
                 animationType="slide"
                 transparent={true}
-                visible={mostrarModal}
-                onRequestClose={() => setMostrarModal(false)}
+                visible={mostrarModalCotizaciones}
+                onRequestClose={() => setMostrarModalCotizaciones(false)}
             >
                 <View style={styles.modalContainer}>
                     <View style={styles.modalContent}>
                         <ScrollView>
-                            <Text style={styles.modalText}>{contenidoModal}</Text>
+                            <Text style={styles.modalText}>Cotizaciones Pendientes:</Text>
+                            {cotizacionesPendientes.map((cotizacion, index) => (
+                                <View key={index} style={styles.cotizacionCard}>
+                                    <Text style={styles.cotizacionTitle}>Empresa: {cotizacion.nombreEmpresa}</Text>
+                                    <Text>Vendedor: {cotizacion.vendedor}</Text>
+                                    <Text>Subtotal: ${cotizacion.subtotal}</Text>
+                                    <Text>Fecha: {cotizacion.fecha}</Text>
+                                    <Button 
+                                        title="Autorizar"
+                                        color="#4CAF50"
+                                        onPress={() => autorizarCotizacion(cotizacion.id)}
+                                    />
+                                </View>
+                            ))}
                         </ScrollView>
-                        <Button title="Cerrar" onPress={() => setMostrarModal(false)} color="#f44336" />
+                        <Button title="Cerrar" onPress={() => setMostrarModalCotizaciones(false)} color="#f44336" />
                     </View>
                 </View>
             </Modal>
@@ -116,8 +166,6 @@ export default function ProductListScreen() {
         </View>
     );
 }
-
-
 
 const styles = StyleSheet.create({
     container: {
@@ -185,5 +233,18 @@ const styles = StyleSheet.create({
         borderRadius: 5,
         padding: 10,
         marginBottom: 10,
+    },
+    cotizacionCard: {
+        borderWidth: 1,
+        borderColor: '#ccc',
+        borderRadius: 5,
+        padding: 15,
+        marginBottom: 10,
+        backgroundColor: '#f9f9f9',
+    },
+    cotizacionTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 5,
     },
 });

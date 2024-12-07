@@ -4,7 +4,7 @@ type Props = {
     route?: string ;
     
   };
-const WelcomeScreen = ({ route,navigation }) => {
+const WelcomeScreen = () => {
 //    const { itemId, otherParam } = route.params; // Obtener los datos del usuario desde los parámetros de la navegación
     //console.log(userData);
 

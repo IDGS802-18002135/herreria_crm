@@ -28,7 +28,7 @@ const Login = () => {
   // Función de login usando fetch
   const handleLogin = async () => {
     try {
-      const response = await fetch('http://localhost:5055/api/Usuario/login', {
+      const response = await fetch('http://192.168.0.108:5055/api/Usuario/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -46,10 +46,7 @@ const Login = () => {
         setUserData(data);
         Alert.alert('Login Successful', `Welcome ${data.nombre}`);
         //navigation.navigate('Welcome', { userData: data });
-        navigation.navigate('welcome',{
-                                        userData:data.nombre,
-                                        otherParam: 'anything you want here',
-                                      });
+        navigation.navigate('welcome');
       } else {
         // Manejar errores de autenticación
         Alert.alert('Login Failed', data.message || 'Invalid credentials');
@@ -65,7 +62,10 @@ const Login = () => {
     <View style={styles.wrapper}>
       <View>
         <Text style={styles.formLogin}>Login</Text>
-        <ImageViewer imgSource={PlaceholderImage} selectedImage={selectedImage} />
+        <View style={[styles.imageContainer]}>
+  <ImageViewer imgSource={PlaceholderImage} selectedImage={selectedImage} />
+</View>
+
         <View style={styles.inputBox}>
           <TextInput
             value={username}
@@ -193,4 +193,10 @@ const styles = StyleSheet.create({
     marginBottom: 5,
     color: '#333',
   },
+  imageContainer: {
+  alignItems: 'center', // Centra horizontalmente
+  justifyContent: 'center', // Centra verticalmente
+  marginBottom: 20, // Espaciado opcional debajo de la imagen
+},
+
 });

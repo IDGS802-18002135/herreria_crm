@@ -8,13 +8,14 @@ export default function RootLayout() {
 
   return (
     <>
+    <NavigationContainer>
       <Stack>
       <Stack.Screen name="(tabs)" options={{title:' ',headerShown:false}}/>
       <Stack.Screen name="+not-found"/>
       
     </Stack>
 
-
+    </NavigationContainer>
 
     </>
       );
