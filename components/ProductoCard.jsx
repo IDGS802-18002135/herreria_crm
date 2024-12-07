@@ -24,6 +24,7 @@ export default function ProductoCard({ producto, agregarProducto }) {
         <View style={styles.card}>
             <Text style={styles.name}>{producto.nombre}</Text>
             <Image source={{ uri: producto.imagen }} style={styles.imagen} />
+            <Text>{producto.nombreFabricacion}</Text>
             <Text>Precio: ${producto.precio}</Text>
             <Text>Cantidad disponible: {producto.cantidad}</Text>
             <Button title="Agregar" onPress={handleAgregarProducto} />

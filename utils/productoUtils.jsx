@@ -46,7 +46,7 @@ export const generarPDF = async (productosSeleccionados, nombreEmpresa, vendedor
     productosSeleccionados.forEach((p) => {
         htmlContent += `
                     <tr>
-                        <td style="border: 1px solid black; padding: 10px;">${p.nombre}</td>
+                        <td style="border: 1px solid black; padding: 10px;">${p.nombreFabricacion}</td>
                         <td style="border: 1px solid black; padding: 10px;">${p.cantidad}</td>
                         <td style="border: 1px solid black; padding: 10px;">$${(p.precio * p.cantidad).toFixed(2)}</td>
                     </tr>`;

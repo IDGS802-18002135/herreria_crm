@@ -13,7 +13,7 @@ const CalcularTiempoProduccion = () => {
   useEffect(() => {
     const fetchProductos = async () => {
       try {
-        const response = await fetch('http://192.168.0.108:5055/api/Productos');
+        const response = await fetch('https://bazar20241109230927.azurewebsites.net/api/Productos');
         const data = await response.json();
         setProductos(data);
       } catch (error) {
@@ -58,7 +58,7 @@ const CalcularTiempoProduccion = () => {
     }
 
     try {
-      const response = await fetch('http://192.168.0.108:5055/api/planificacion/calcularTiempoProduccion', {
+      const response = await fetch('https://bazar20241109230927.azurewebsites.net/api/planificacion/calcularTiempoProduccion', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -87,7 +87,7 @@ const CalcularTiempoProduccion = () => {
     if (!selectedProductoId) return;
 
     try {
-      const produccionResponse = await fetch('http://10.16.14.126:5055/api/produccion/solicitarProduccion', {
+      const produccionResponse = await fetch('https://bazar20241109230927.azurewebsites.net/api/produccion/solicitarProduccion', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

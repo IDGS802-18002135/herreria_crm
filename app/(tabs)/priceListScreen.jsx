@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, FlatList, Text, StyleSheet, Button, TouchableOpacity, Modal, ScrollView, TextInput } from 'react-native';
 import ProductoCard from '../../components/ProductoCard';
 import { agregarProducto, calcularSubtotal, generarPDF } from '../../utils/productoUtils';
+import { Picker } from '@react-native-picker/picker'; // Importar Picker
 
 export default function ProductListScreen() {
     const [productos, setProductos] = useState([]);
@@ -14,15 +15,17 @@ export default function ProductListScreen() {
     const [mostrarModalDatos, setMostrarModalDatos] = useState(false);
     const [cotizacionesPendientes, setCotizacionesPendientes] = useState([]);
     const [mostrarModalCotizaciones, setMostrarModalCotizaciones] = useState(false);
+    const [busqueda, setBusqueda] = useState("");
+    const [empresas, setEmpresas] = useState([]); // Para almacenar las empresas disponibles
 
-    // Cargar productos desde la API
+    // Cargar productos desde la nueva API
     useEffect(() => {
-        fetch('http://192.168.0.108:5055/api/Productos')
+        fetch('https://bazar20241109230927.azurewebsites.net/api/Inventario/productos')
             .then((response) => response.json())
             .then((data) => {
                 const productosConImagen = data.map((producto) => ({
                     ...producto,
-                    imagen: producto.imagenProducto || "https://ralfvanveen.com/wp-content/uploads/2021/06/Placeholder-_-Glossary-800x450.webp"
+                    imagen: producto.imagenProducto || "https://ralfvanveen.com/wp-content/uploads/2021/06/Placeholder-_-Glossary-800x450.webp",
                 }));
                 setProductos(productosConImagen);
             })
@@ -30,6 +33,30 @@ export default function ProductListScreen() {
                 console.error('Error al cargar los productos:', error);
             });
     }, []);
+
+    // Cargar lista de empresas desde la API
+    useEffect(() => {
+        fetch('https://bazar20241109230927.azurewebsites.net/api/EmpresaCliente/vista')
+            .then((response) => response.json())
+            .then((data) => {
+                setEmpresas(data); // Guardar todas las empresas
+                // Seleccionar la primera empresa por defecto, si existe
+                const empresaSeleccionada = data.find(cliente => cliente.nombreEmpresa !== "Sin Empresa");
+                if (empresaSeleccionada) {
+                    setNombreEmpresa(empresaSeleccionada.nombreEmpresa);
+                } else {
+                    setNombreEmpresa("Sin Empresa");
+                }
+            })
+            .catch((error) => {
+                console.error('Error al cargar las empresas:', error);
+            });
+    }, []);
+
+    // Filtrar productos por búsqueda
+    const productosFiltrados = productos.filter(producto =>
+        producto.nombreFabricacion.toLowerCase().includes(busqueda.toLowerCase())
+    );
 
     const handleAgregarProducto = (productoId, cantidad) => {
         agregarProducto(productoId, cantidad, productos, setProductos, setProductosSeleccionados);
@@ -48,12 +75,17 @@ export default function ProductListScreen() {
     };
 
     const handleGenerarPDF = () => {
+        if (productosSeleccionados.length === 0) {
+            alert("El carrito está vacío. Agrega productos antes de generar una cotización.");
+            return; // Salir de la función si el carrito está vacío
+        }
         generarPDF(productosSeleccionados, nombreEmpresa, vendedor, calcularSubtotal);
         guardarCotizacion();
         setProductosSeleccionados([]); // Limpia el carrito al generar la cotización
         setMostrarLista(false);
         setMostrarModalDatos(false);
     };
+    
 
     const autorizarCotizacion = (cotizacionId) => {
         const cotizacionAutorizada = cotizacionesPendientes.find(c => c.id === cotizacionId);
@@ -66,8 +98,18 @@ export default function ProductListScreen() {
     return (
         <View style={styles.container}>
             <Text style={styles.title}>Lista de Productos</Text>
+            
+            {/* Campo de búsqueda */}
+            <TextInput
+                style={styles.input}
+                placeholder="Buscar producto..."
+                value={busqueda}
+                onChangeText={setBusqueda}
+            />
+
+            {/* Lista de productos filtrados */}
             <FlatList
-                data={productos}
+                data={productosFiltrados}
                 renderItem={({ item }) => (
                     <ProductoCard producto={item} agregarProducto={handleAgregarProducto} />
                 )}
@@ -88,7 +130,7 @@ export default function ProductListScreen() {
                     <Text style={styles.subtitle}>Productos Seleccionados:</Text>
                     {productosSeleccionados.map((p, index) => (
                         <Text key={index} style={styles.productoSeleccionado}>
-                            {`${p.nombre} - Cantidad: ${p.cantidad} - Total: $${p.precio * p.cantidad}`}
+                            {`${p.nombreFabricacion} - Cantidad: ${p.cantidad} - Total: $${p.precio * p.cantidad}`}
                         </Text>
                     ))}
                     <Text style={styles.subtotal}>Subtotal: ${calcularSubtotal(productosSeleccionados)}</Text>
@@ -122,6 +164,12 @@ export default function ProductListScreen() {
                                     <Text>Vendedor: {cotizacion.vendedor}</Text>
                                     <Text>Subtotal: ${cotizacion.subtotal}</Text>
                                     <Text>Fecha: {cotizacion.fecha}</Text>
+                                    <Text style={styles.subtitle}>Productos:</Text>
+            {cotizacion.productos.map((producto, idx) => (
+                <Text key={idx} style={styles.productoSeleccionado}>
+                    {`${producto.nombreFabricacion} - Cantidad: ${producto.cantidad} - Total: $${producto.precio * producto.cantidad}`}
+                </Text>
+            ))}
                                     <Button 
                                         title="Autorizar"
                                         color="#4CAF50"
@@ -144,18 +192,30 @@ export default function ProductListScreen() {
                 <View style={styles.modalContainer}>
                     <View style={styles.modalContent}>
                         <Text style={styles.modalText}>Ingrese los datos:</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Nombre de la Empresa"
-                            value={nombreEmpresa}
-                            onChangeText={setNombreEmpresa}
-                        />
+                        
+                        {/* Selector de empresa */}
+                        <Text style={styles.label}>Selecciona la empresa:</Text>
+                        <Picker
+                            selectedValue={nombreEmpresa}
+                            onValueChange={(itemValue) => setNombreEmpresa(itemValue)}
+                        >
+                            {empresas.map((empresa, index) => (
+                                <Picker.Item
+                                    key={index}
+                                    label={empresa.nombreEmpresa}
+                                    value={empresa.nombreEmpresa}
+                                />
+                            ))}
+                        </Picker>
+
+                        {/* Campo para el vendedor */}
                         <TextInput
                             style={styles.input}
                             placeholder="Nombre del Vendedor"
                             value={vendedor}
                             onChangeText={setVendedor}
                         />
+                        
                         <View style={styles.buttonContainer}>
                             <Button title="Generar PDF" onPress={handleGenerarPDF} color="#4CAF50" />
                             <Button title="Cancelar" onPress={() => setMostrarModalDatos(false)} color="#f44336" />
@@ -180,6 +240,11 @@ const styles = StyleSheet.create({
     subtitle: {
         fontSize: 18,
         fontWeight: 'bold',
+    },
+    label: {
+        fontSize: 16,
+        marginBottom: 10,
+        marginTop: 20,
     },
     listaSeleccionados: {
         marginTop: 20,
@@ -219,32 +284,31 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
     modalContent: {
-        width: '80%',
+        backgroundColor: 'white',
         padding: 20,
-        backgroundColor: '#fff',
-        borderRadius: 10,
+        borderRadius: 5,
+        width: '80%',
     },
     modalText: {
+        fontSize: 18,
+        fontWeight: 'bold',
         marginBottom: 10,
     },
     input: {
         borderWidth: 1,
         borderColor: '#ccc',
-        borderRadius: 5,
         padding: 10,
+        borderRadius: 5,
         marginBottom: 10,
     },
     cotizacionCard: {
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 5,
-        padding: 15,
         marginBottom: 10,
-        backgroundColor: '#f9f9f9',
+        padding: 10,
+        backgroundColor: '#f0f0f0',
+        borderRadius: 5,
     },
     cotizacionTitle: {
-        fontSize: 18,
         fontWeight: 'bold',
-        marginBottom: 5,
+        fontSize: 16,
     },
 });

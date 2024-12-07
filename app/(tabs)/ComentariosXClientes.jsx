@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TextInput, TouchableOpacity, Alert, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import Sidebar from '@/components/SideBar';
 
 const ComentariosXClientes = () => {
   const [comentarios, setComentarios] = useState([]);
@@ -141,7 +142,10 @@ const ComentariosXClientes = () => {
   }
 
   return (
+    <>
+    
     <View style={styles.container}>
+        
       <View style={styles.cardContainer}>
         <Text style={styles.header}>Comentarios por Cliente</Text>
 
@@ -152,6 +156,8 @@ const ComentariosXClientes = () => {
         />
       </View>
     </View>
+    </>
+    
   );
 };
 

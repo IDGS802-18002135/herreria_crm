@@ -1,21 +1,36 @@
-import React from 'react';
+import Sidebar from '@/components/SideBar';
+
 import { View, Text, StyleSheet } from 'react-native';
-type Props = {
-    route?: string ;
-    
-  };
+import React, { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const WelcomeScreen = () => {
-//    const { itemId, otherParam } = route.params; // Obtener los datos del usuario desde los parámetros de la navegación
-    //console.log(userData);
+  const [userData, setUserData] = useState<any>(null);
+
+  useEffect(() => {
+    const getUserData = async () => {
+      const storedUserData = await AsyncStorage.getItem('userData');
+      console.log(storedUserData)
+      if (storedUserData) {
+        setUserData(JSON.parse(storedUserData));
+      }
+    };
+
+    getUserData();
+  }, []);
 
   return (
     <View style={styles.wrapper}>
-      <Text style={styles.welcomeText}>Welcome, {}!</Text>
-      <View style={styles.userInfo}>
-        <Text style={styles.userInfoText}>Rol: test</Text>
-        <Text style={styles.userInfoText}>Estatus: test</Text>
-        <Text style={styles.userInfoText}>Dirección: test</Text>
-      </View>
+      {userData ? (
+        <View style={styles.userInfo}>
+          <Text style={styles.userInfoText}>Nombre: {userData.nombre}</Text>
+          <Text style={styles.userInfoText}>Rol: {userData.rol}</Text>
+          <Text style={styles.userInfoText}>Estatus: {userData.estatus === 1 ? 'Activo' : 'Inactivo'}</Text>
+          <Text style={styles.userInfoText}>Dirección: {userData.direccion}</Text>
+        </View>
+      ) : (
+        <Text>Loading...</Text>
+      )}
     </View>
   );
 };

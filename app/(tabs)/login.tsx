@@ -2,6 +2,8 @@ import ImageViewer from '@/components/ImageViewer';
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Switch, StyleSheet, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Importa AsyncStorage
+
 type Props = {
   userData: {
     params: {
@@ -28,7 +30,7 @@ const Login = () => {
   // Función de login usando fetch
   const handleLogin = async () => {
     try {
-      const response = await fetch('http://192.168.0.108:5055/api/Usuario/login', {
+      const response = await fetch('https://bazar20241109230927.azurewebsites.net/api/Usuario/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -38,26 +40,25 @@ const Login = () => {
           contrasenia: password,
         }),
       });
-
+  
       const data = await response.json();
-
+  
       if (response.ok) {
         // Login exitoso, almacenamos los datos del usuario
         setUserData(data);
+        // Guardar los datos del usuario en AsyncStorage
+        await AsyncStorage.setItem('userData', JSON.stringify(data));
         Alert.alert('Login Successful', `Welcome ${data.nombre}`);
-        //navigation.navigate('Welcome', { userData: data });
         navigation.navigate('welcome');
       } else {
         // Manejar errores de autenticación
         Alert.alert('Login Failed', data.message || 'Invalid credentials');
       }
-
     } catch (error) {
       console.error('Error:', error);
       Alert.alert('Login Failed', 'Something went wrong, please try again.');
     }
   };
-
   return (
     <View style={styles.wrapper}>
       <View>
