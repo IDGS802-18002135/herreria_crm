@@ -30,7 +30,11 @@ const Login = () => {
   // Función de login usando fetch
   const handleLogin = async () => {
     try {
+<<<<<<< HEAD:app/login.tsx
       const response = await fetch('https://bazar20241109230927.azurewebsites.net/api/Usuario/login', {
+=======
+      const response = await fetch('http://10.16.14.126:5055/api/Usuario/login', {
+>>>>>>> 7dd9d2610d1d8831b20b05494c3465f2b70bca56:app/(tabs)/login.tsx
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -49,7 +53,15 @@ const Login = () => {
         // Guardar los datos del usuario en AsyncStorage
         await AsyncStorage.setItem('userData', JSON.stringify(data));
         Alert.alert('Login Successful', `Welcome ${data.nombre}`);
+<<<<<<< HEAD:app/login.tsx
         navigation.navigate('(tabs)');
+=======
+        //navigation.navigate('Welcome', { userData: data });
+        navigation.navigate('dashboard',{
+                                        userData:data.nombre,
+                                        otherParam: 'anything you want here',
+                                      });
+>>>>>>> 7dd9d2610d1d8831b20b05494c3465f2b70bca56:app/(tabs)/login.tsx
       } else {
         // Manejar errores de autenticación
         Alert.alert('Login Failed', data.message || 'Invalid credentials');
