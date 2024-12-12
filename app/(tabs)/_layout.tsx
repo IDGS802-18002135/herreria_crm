@@ -5,7 +5,17 @@ import WelcomeScreen from "./welcome";
 export default function TabLayout() {
   return (
     <Tabs
-      initialRouteName="login" // Ahora apunta a la pantalla 'login'
+      
+    
+    
+    
+    
+    
+    
+    //initialRouteName="login" // Ahora apunta a la pantalla 'login'
+      
+      
+      
       screenOptions={{
         tabBarActiveTintColor: "#ffd33d",
         headerStyle: {
@@ -18,6 +28,39 @@ export default function TabLayout() {
         },
       }}
     >
+      <Tabs.Screen
+        name="welcome"
+        
+        options={{
+          
+          title: "Welcome",
+          headerShown: false,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "home-sharp" : "home-outline"}
+              color={color}
+              size={24}
+            />
+          ),
+        }}
+        
+      />
+        <Tabs.Screen
+          name="test"
+          
+          options={{
+            headerShown: false,  
+            title: "Notificaciones",
+            headerShadowVisible: false,
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons
+                name={focused ? "notifications-sharp" : "notifications-outline"}
+                color={color}
+                size={24}
+              />
+            ),
+          }}/>
+      {/*
       <Tabs.Screen
         name="login"
         options={{
@@ -39,6 +82,7 @@ export default function TabLayout() {
         options={{
           
           title: "Welcome",
+          headerShadowVisible: false,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? "home-sharp" : "home-outline"}
@@ -77,7 +121,7 @@ export default function TabLayout() {
             />
           ),
         }}
-      />
+      />*/ }
     </Tabs>
   );
 }

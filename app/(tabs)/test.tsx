@@ -7,7 +7,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { FontAwesome5 } from '@expo/vector-icons';
 
-const WelcomeScreen = () => {
+const TEST = () => {
   const [userData, setUserData] = useState<any>(null);
   const navigation = useNavigation();
 
@@ -88,7 +88,7 @@ const WelcomeScreen = () => {
   );
 };
 
-export default WelcomeScreen;
+export default TEST;
 
 const styles = StyleSheet.create({
   wrapper: {

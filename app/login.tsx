@@ -49,7 +49,7 @@ const Login = () => {
         // Guardar los datos del usuario en AsyncStorage
         await AsyncStorage.setItem('userData', JSON.stringify(data));
         Alert.alert('Login Successful', `Welcome ${data.nombre}`);
-        navigation.navigate('welcome');
+        navigation.navigate('(tabs)');
       } else {
         // Manejar errores de autenticación
         Alert.alert('Login Failed', data.message || 'Invalid credentials');

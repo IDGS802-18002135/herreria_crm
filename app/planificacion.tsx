@@ -213,6 +213,7 @@ const styles = StyleSheet.create({
   },
   wrapper: {
     paddingHorizontal: 40,
+    paddingVertical: 100,
     backgroundColor: '#FFFFFF',
   },
   title: {
