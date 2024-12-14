@@ -6,11 +6,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const CalcularTiempoProduccion = () => {
   const [productos, setProductos] = useState<any[]>([]);
   const [selectedProductoId, setSelectedProductoId] = useState<number | null>(null);
+  const [selectedCotizacion,setSelectedCotizacion]=useState([]);
+  const[cotizaciones,setCotizaciones]=useState([]);
   const [cantidad, setCantidad] = useState('');
   const [resultado, setResultado] = useState<any>(null);
   const [historialProduccion, setHistorialProduccion] = useState<any[]>([]);
+  const[cotizacionParaEnviar,setCotizacionParaEnviar]=useState([]);
 
-  useEffect(() => {
+  /*useEffect(() => {
     const fetchProductos = async () => {
       try {
         const response = await fetch('https://bazar20241109230927.azurewebsites.net/api/Productos');
@@ -22,13 +25,96 @@ const CalcularTiempoProduccion = () => {
       }
     };
     fetchProductos();
-  }, []);
+  }, []);*/
+  useEffect(() => {
+    fetch('http://soldaline8.somee.com/api/Inventario/producto')
+        .then((response) => response.json())
+        .then((data) => {
+            // Mapeo de datos para incluir las imágenes desde `fabricacion.imagenProducto`
+            const productosConImagen = data.map((producto) => ({
+                ...producto,
+                imagen: producto.fabricacion.imagenProducto 
+                    ? producto.fabricacion.imagenProducto 
+                    : "https://ralfvanveen.com/wp-content/uploads/2021/06/Placeholder-_-Glossary-800x450.webp",
+                nombreProducto: producto.fabricacion.nombreProducto // Nombre para usarlo más fácilmente
+            }));
+            console.log("PRODUCTOS CON IMAGEN: ", productosConImagen);
+            setProductos(productosConImagen);
+        })
+        .catch((error) => {
+            console.error('Error al cargar los productos:', error);
+        });
+}, []);
+  const handleCotizacionChange = async (cotizacionId) => {
+    // Actualiza el estado con el cotizacionId
+    setSelectedCotizacion(cotizacionId);
+  
+    // Llama a la API con la idCotizacion
+    try {
+      const response = await fetch('https://bazar20241109230927.azurewebsites.net/api/planificacion/calcularEstimacionPorCotizacion', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ cotizacionId }), // Envía el cotizacionId
+      });
+  
+      const text = await response.text(); // Obtén la respuesta en texto
+      console.log('Respuesta del servidor:', text);
+  
+      if (response.ok) {
+        try {
+          const data = JSON.parse(text); // Intenta convertir la respuesta en JSON
+          //setCotizacionParaEnviar(data); // Opcional, si quieres actualizar el estado con la respuesta
+          Alert.alert('Cálculo Exitoso', 'data.');
+        } catch (error) {
+          Alert.alert('Error', text); // Maneja los mensajes de error que no son JSON
+        }
+      } else {
+        Alert.alert('Error', ` ${response.status}: ${text}`);
+      }
+    } catch (error) {
+      console.error('Error en la solicitud:', error);
+      Alert.alert('Error', 'Ocurrió un problema, inténtalo de nuevo.');
+    }
+  };
+  
+  
+  const getStatusLabel = (status) => {
+    const statusLabels = {
+      0: 'Pendiente',
+      1: 'Aprobada',
+      2: 'Rechazada',
+    };
+    return statusLabels[status] || 'Desconocido';
+  };
+ //cargarCotizaciones 
+ const cargarCotizaciones = async () => {
+  try {
+      console.log("AAAAAAAAAAAAAAAAA");
+      const response = await fetch('https://bazar20241109230927.azurewebsites.net/api/Cotizaciones/getAll');
 
+      if (response.ok) {
+          const data = await response.json();
+          setCotizaciones(data);
+          console.log("cotizaciones pendientes data",data);
+      } else {
+          console.log('Error al cargar las cotizaciones:', response.status);
+      }
+  } catch (error) {
+      console.error('Error en la solicitud:', error);
+  }
+};
+
+useEffect(() => {
+  cargarCotizaciones();
+}, []);
   // Cargar el historial desde AsyncStorage
   useEffect(() => {
     const loadHistorial = async () => {
       try {
         const storedHistorial = await AsyncStorage.getItem('historialProduccion');
+        console.log(storedHistorial);
         if (storedHistorial) {
           setHistorialProduccion(JSON.parse(storedHistorial));
         }
@@ -50,13 +136,13 @@ const CalcularTiempoProduccion = () => {
       console.error('Error saving historial:', error);
     }
   };
-
+  
   const handleCalcularTiempo = async () => {
-    if (!selectedProductoId) {
-      Alert.alert('Error', 'Por favor, selecciona un producto.');
+    if (!selectedProductoId||!cantidad) {
+      Alert.alert('Error', 'Por favor, selecciona un producto y una cantidad.');
       return;
     }
-
+  
     try {
       const response = await fetch('https://bazar20241109230927.azurewebsites.net/api/planificacion/calcularTiempoProduccion', {
         method: 'POST',
@@ -64,25 +150,33 @@ const CalcularTiempoProduccion = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          FabricacionId: selectedProductoId,
-          Cantidad: parseFloat(cantidad),
+          fabricacionId: selectedProductoId,
+          cantidad: parseFloat(cantidad),
         }),
       });
-
-      const data = await response.json();
-
+  
+      const text = await response.text(); // Obtén la respuesta en texto.
+  
+      console.log('Respuesta del servidor:', text);
+  
       if (response.ok) {
-        setResultado(data);
-        Alert.alert('Cálculo Exitoso', 'El tiempo estimado de producción ha sido calculado.');
+        try {
+          const data = JSON.parse(text); // Intenta convertir la respuesta en JSON.
+          setResultado(data);
+          Alert.alert('Cálculo Exitoso', 'El tiempo estimado de producción ha sido calculado.');
+        } catch (error) {
+          Alert.alert('Error', text); // Maneja mensajes de error que no son JSON.
+        }
       } else {
-        Alert.alert('Error', data.message || 'No se pudo calcular el tiempo de producción');
+        Alert.alert('Error', ` ${response.status}: ${text}`);
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error en la solicitud:', error);
       Alert.alert('Error', 'Ocurrió un problema, inténtalo de nuevo.');
     }
   };
-
+  
+  
   const handleMandarAProduccion = async () => {
     if (!selectedProductoId) return;
 
@@ -140,6 +234,7 @@ const CalcularTiempoProduccion = () => {
           <Picker
             selectedValue={selectedProductoId ?? ""}
             onValueChange={(itemValue) => setSelectedProductoId(itemValue)}
+            
             style={styles.picker}
           >
             <Picker.Item label="Seleccione un producto" value="" />
@@ -147,7 +242,30 @@ const CalcularTiempoProduccion = () => {
               <Picker.Item key={producto.id} label={producto.nombreProducto} value={producto.id} />
             ))}
           </Picker>
+          {/*<Picker
+  selectedValue={selectedCotizacion}
+  onValueChange={handleCotizacionChange}
+>
+  <Picker.Item label="Seleccione una cotización" value="" />
+  {cotizaciones.map((cotizacion) => (
+    <Picker.Item
+      key={cotizacion.cotizacionId}
+      label={`${cotizacion.nombreEmpresa} - ${new Date(cotizacion.fecha).toLocaleDateString()}`}
+      value={cotizacion.cotizacionId}
+    />
+  ))}
+</Picker>
+*/}
+
+
+
+
+            
+          
         </View>
+
+      
+      
         <View style={styles.inputBox}>
           <TextInput
             value={cantidad}

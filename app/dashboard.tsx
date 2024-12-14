@@ -1,33 +1,73 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { LineChart } from 'react-native-chart-kit';
-import { Dimensions } from 'react-native';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
-import * as XLSX from 'xlsx';
-
-const screenWidth = Dimensions.get('window').width;
+import { View, Text, StyleSheet, FlatList, Dimensions } from 'react-native';
+import { BarChart } from 'react-native-chart-kit';
 
 const DashboardScreen = () => {
-    const [filter, setFilter] = useState("mes");
     const [salesData, setSalesData] = useState([]);
+    const [topSales, setTopSales] = useState([]);
+    const [userNames, setUserNames] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [summary, setSummary] = useState({
+        totalVentas: 0,
+        totalIngresos: 0,
+        promedioPorVenta: 0,
+    });
 
     useEffect(() => {
         const fetchSalesData = async () => {
             try {
-                // Hacer la solicitud a la API para obtener los datos de ventas
-                const response = await fetch('https://bazar20241109230927.azurewebsites.net/api/GetDashboard');  // Reemplaza 'URL_DE_TU_API' con la URL real
+                const response = await fetch('https://bazar20241109230927.azurewebsites.net/api/GetDashboard');
                 const data = await response.json();
 
-                // Transformar los datos en el formato necesario para el gráfico
-                const transformedData = data.map(item => ({
+            
+                const transformedData = data.map((item) => ({
+                    id: item.id,
                     cantidad: item.cantidad,
-                    precio: item.precioUnitario,
+                    precioUnitario: item.precioUnitario,
                     totalVenta: item.cantidad * item.precioUnitario,
+                    fecha: item.venta.fecha,
+                    folio: item.venta.folio,
                 }));
 
+                // Calcular resumen
+                const totalVentas = transformedData.length;
+                const totalIngresos = transformedData.reduce((acc, curr) => acc + curr.totalVenta, 0);
+                const promedioPorVenta = totalIngresos / totalVentas;
+
                 setSalesData(transformedData);
+                setSummary({ totalVentas, totalIngresos, promedioPorVenta });
+
+                // Seleccionar las 5 ventas principales basadas en precioUnitario * cantidad
+                const topSalesData = [...transformedData]
+                    .sort((a, b) => b.precioUnitario * b.cantidad - a.precioUnitario * a.cantidad)
+                    .slice(0, 5);
+
+                setTopSales(topSalesData);
+
+                // Obtener los IDs de las 5 mejores ventas
+                const topSalesIds = topSalesData.map((sale) => sale.id);
+
+                // Llamar a la API para obtener los nombres de los usuarios relacionados con esas ventas
+                const fetchUserNames = async () => {
+                    const names = await Promise.all(
+                        topSalesIds.map(async (id) => {
+                            try {
+                                const response = await fetch(`https://bazar20241109230927.azurewebsites.net/api/Usuario/${id}`);
+                                if (!response.ok) {
+                                    throw new Error('Usuario no encontrado');
+                                }
+                                const user = await response.json();
+                                return user.nombre || 'Usuario Desconocido'; // Si no tiene nombre, lo asigna como 'Usuario Desconocido'
+                            } catch (error) {
+                                console.error(`Error al obtener el usuario con ID ${id}:`, error);
+                                return 'Usuario Desconocido';
+                            }
+                        })
+                    );
+                    setUserNames(names);
+                };
+
+                await fetchUserNames();
                 setIsLoading(false);
             } catch (error) {
                 console.error("Error al obtener los datos:", error);
@@ -38,113 +78,82 @@ const DashboardScreen = () => {
         fetchSalesData();
     }, []);
 
-    const getFilteredData = () => {
-        return {
-            labels: salesData.map((_, index) => `Venta ${index + 1}`),  // Etiquetas por venta
-            datasets: [{
-                data: salesData.map(item => item.totalVenta),
-                color: () => `rgba(0, 191, 255, 1)`,
-            }]
-        };
-    };
-
-    const getTotalSales = () => {
-        return salesData.reduce((acc, venta) => acc + venta.totalVenta, 0);
-    };
-
-    const getTotalProfit = () => {
-        return getTotalSales() * 0.30;  // Suponiendo un margen de ganancia del 30%
-    };
-
-    function s2ab(s) {
-        const buf = new ArrayBuffer(s.length);
-        const view = new Uint8Array(buf);
-        for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xFF;
-        return buf;
-    }
-
-    const exportToExcel = async () => {
-        const wsData = salesData.map((venta, index) => ({
-            Fecha: `Venta ${index + 1}`,
-            Producto: "Protección",
-            Cantidad: venta.cantidad,
-            Precio: `$${venta.precio.toFixed(2)}`,
-            VentaTotal: `$${venta.totalVenta.toFixed(2)}`,
-            Ganancia: `$${(venta.totalVenta * 0.30).toFixed(2)}`
-        }));
-
-        const ws = XLSX.utils.json_to_sheet(wsData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "SalesData");
-        const wbout = XLSX.write(wb, { type: 'binary', bookType: "xlsx" });
-
-        if (Platform.OS === 'web') {
-            const blob = new Blob([s2ab(wbout)], { type: "application/octet-stream" });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `ventas_${filter}.xlsx`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        } else {
-            const uri = FileSystem.cacheDirectory + `ventas_${filter}.xlsx`;
-            await FileSystem.writeAsStringAsync(uri, wbout, { encoding: FileSystem.EncodingType.Base64 });
-            await Sharing.shareAsync(uri);
-        }
-    };
-
-    const chartConfig = {
-        backgroundGradientFrom: "#fff",
-        backgroundGradientTo: "#fff",
-        decimalPlaces: 1,
-        color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-        labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-        style: { borderRadius: 16 },
-        propsForDots: { r: "5", strokeWidth: "2", stroke: "#fff" },
-    };
-
     if (isLoading) {
-        return <Text>Cargando...</Text>;
+        return <Text style={styles.loadingText}>Cargando datos...</Text>;
     }
+
+
+    const salesWithUserNames = salesData.map((sale, index) => ({
+        ...sale,
+        userName: userNames[index] || 'Usuario Desconocido',
+    }));
+
+ 
+    const chartData = {
+        labels: topSales.map((item) => `${item.folio}`), 
+        datasets: [
+            {
+                data: topSales.map((item) => item.precioUnitario * item.cantidad), 
+            },
+        ],
+    };
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Dashboard</Text>
-            <View style={styles.tabContainer}>
-                <TouchableOpacity style={styles.tab} onPress={() => setFilter("mes")}>
-                    <Text style={styles.tabText}>Mes</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.tab} onPress={() => setFilter("semana")}>
-                    <Text style={styles.tabText}>Semana</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.tab} onPress={() => setFilter("dia")}>
-                    <Text style={styles.tabText}>Día</Text>
-                </TouchableOpacity>
+            <Text style={styles.title}>Dashboard de Ventas</Text>
+
+            {/* Resumen */}
+            <View style={styles.summaryContainer}>
+                <View style={styles.summaryCard}>
+                    <Text style={styles.summaryText}>Total Ventas</Text>
+                    <Text style={styles.summaryValue}>{summary.totalVentas}</Text>
+                </View>
+                <View style={styles.summaryCard}>
+                    <Text style={styles.summaryText}>Ingresos Totales</Text>
+                    <Text style={styles.summaryValue}>${summary.totalIngresos.toFixed(2)}</Text>
+                </View>
+                <View style={styles.summaryCard}>
+                    <Text style={styles.summaryText}>Promedio por Venta</Text>
+                    <Text style={styles.summaryValue}>${summary.promedioPorVenta.toFixed(2)}</Text>
+                </View>
             </View>
 
-            <View style={styles.chartContainer}>
-                <Text style={styles.chartTitle}>Ventas ({filter})</Text>
-                <LineChart
-                    data={getFilteredData()}
-                    width={screenWidth * 0.9}
-                    height={220}
-                    chartConfig={chartConfig}
-                    bezier
-                    style={styles.chart}
-                />
-                <Text style={styles.legend}>Ventas Totales</Text>
-            </View>
+            {/* Gráfico */}
+            <Text style={styles.chartTitle}>Top 5 Ventas (Precio Unitario * Cantidad)</Text>
+            <BarChart
+                data={chartData}
+                width={Dimensions.get('window').width - 40}
+                height={220}
+                chartConfig={{
+                    backgroundColor: '#1cc910',
+                    backgroundGradientFrom: '#eff3ff',
+                    backgroundGradientTo: '#efefef',
+                    decimalPlaces: 2,
+                    color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                    style: { borderRadius: 16 },
+                    labelColor: () => '#000', 
+                    propsForLabels: {
+                        labelOffset: 10, 
+                    },
+                }}
+                style={styles.chart}
+            />
 
-            <View style={styles.footer}>
-                <Text style={styles.total}>Total Ventas:</Text>
-                <Text style={styles.amount}>${getTotalSales().toFixed(2)}</Text>
-                <Text style={styles.total}>Ganancia Estimada:</Text>
-                <Text style={styles.amount}>${getTotalProfit().toFixed(2)}</Text>
-                <TouchableOpacity style={styles.exportButton} onPress={exportToExcel}>
-                    <Text style={styles.exportText}>Exportar a Excel</Text>
-                </TouchableOpacity>
-            </View>
+            {/* Detalle de las ventas */}
+            <FlatList
+                data={salesWithUserNames}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={({ item }) => (
+                    <View style={styles.card}>
+                        <Text style={styles.cardText}>Folio: {item.folio}</Text>
+                        <Text style={styles.cardText}>Fecha: {new Date(item.fecha).toLocaleDateString()}</Text>
+                        <Text style={styles.cardText}>Cantidad: {item.cantidad}</Text>
+                        <Text style={styles.cardText}>Precio Unitario: ${item.precioUnitario.toFixed(2)}</Text>
+                        <Text style={styles.cardText}>Total: ${item.totalVenta.toFixed(2)}</Text>
+                        <Text style={styles.cardText}>Usuario: {item.userName}</Text> {/* Muestra el nombre del usuario */}
+                    </View>
+                )}
+            />
         </View>
     );
 };
@@ -155,68 +164,67 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
         padding: 20,
     },
+    loadingText: {
+        fontSize: 18,
+        textAlign: 'center',
+        marginTop: 20,
+    },
     title: {
         fontSize: 24,
         fontWeight: 'bold',
         marginBottom: 20,
         textAlign: 'center',
     },
-    tabContainer: {
+    summaryContainer: {
         flexDirection: 'row',
-        justifyContent: 'space-around',
+        justifyContent: 'space-between',
         marginBottom: 20,
     },
-    tab: {
-        padding: 10,
-        backgroundColor: '#e0e0e0',
+    summaryCard: {
+        flex: 1,
+        backgroundColor: '#f9f9f9',
+        padding: 15,
+        marginHorizontal: 5,
         borderRadius: 10,
-    },
-    tabText: {
-        fontSize: 16,
-        color: '#000',
-    },
-    chartContainer: {
         alignItems: 'center',
-        marginBottom: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+        elevation: 3,
+    },
+    summaryText: {
+        fontSize: 14,
+        color: '#555',
+    },
+    summaryValue: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginTop: 5,
     },
     chartTitle: {
         fontSize: 18,
         fontWeight: 'bold',
         marginBottom: 10,
+        textAlign: 'center',
     },
     chart: {
-        borderRadius: 16,
+        marginBottom: 20,
     },
-    legend: {
-        fontSize: 14,
-        color: '#555',
-        marginTop: 10,
-    },
-    footer: {
-        marginTop: 20,
-        padding: 10,
-        backgroundColor: '#f1f1f1',
-        borderRadius: 10,
-    },
-    total: {
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    amount: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#00bfff',
+    card: {
+        backgroundColor: '#f9f9f9',
+        padding: 15,
         marginBottom: 10,
-    },
-    exportButton: {
-        padding: 10,
-        backgroundColor: '#00bfff',
         borderRadius: 10,
-        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+        elevation: 3,
     },
-    exportText: {
-        color: '#fff',
+    cardText: {
         fontSize: 16,
+        marginBottom: 5,
     },
 });
 

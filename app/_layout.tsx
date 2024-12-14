@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity, Alert, Pressable } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import Sidebar from '@/components/SideBar';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import Login from "./login";
+import Login from "./index";
 import WelcomeScreen from "./(tabs)/welcome";
 import ComentariosXClientes from "./ComentariosXClientes";
 import ProductListScreen from "./priceListScreen";
@@ -12,7 +12,7 @@ import { UserProvider } from "./UserContext";
 import HistorialComunicacion from "./HistorialComunicacion";
 import ClientesPotenciales from "./ClientesPotenciales";
 import CalcularTiempoProduccion from "./planificacion";
-
+import Empresa from './Empresa';
 import { createDrawerNavigator,  } from '@react-navigation/drawer';
 import {Drawer} from 'expo-router/drawer'
 import { StyleSheet } from 'react-native';
@@ -61,122 +61,148 @@ export default function RootLayout({ username,  }) {
   return (
     <>
       <UserProvider>
-        <Drawer screenOptions={{
+        
+      <Drawer screenOptions={{
             drawerStyle: {
               backgroundColor: '#343a40',
             },
             drawerLabelStyle: { color: '#fff' },
           }}
           >
-            
-        <Drawer.Screen
-            name="login"
+          <Drawer.Screen
+            name="(tabs)"
             
             options={{
-              drawerLabel:"Login",
-              drawerIcon: () => <Icon name="sign-in" size={24} color="#fff" />,
+              
+              drawerLabel:"Home",
+              title:"Home",
+              drawerIcon: () => <Icon name="home" size={24} color="#fff" />,
             }}
-          />
+            
+          />  
+        
           <Drawer.Screen
             name="+not-found"
             
             options={{
+              drawerItemStyle: { display: 'none' },
               drawerLabel:"NOT FOUND",
-              drawerIcon: () => <Icon name="sign-in" size={24} color="#fff" />,
-            }}
-          />
-        </Drawer>
-
-
-    {/*
-      
-      
-        <Drawer.Navigator
-          screenOptions={{
-            drawerStyle: {
-              backgroundColor: '#343a40',
-            },
-            drawerLabelStyle: { color: '#fff' },
-          }}
-          initialRouteName="login"
-        >
-         
-          <Drawer.Screen
-            name="login"
-            component={Login}
-            options={{
-              title: 'Login',
               drawerIcon: () => <Icon name="sign-in" size={24} color="#fff" />,
             }}
           />
           <Drawer.Screen
             name="planificacion"
-            component={CalcularTiempoProduccion}
+            
             options={{
-              title: 'Planificación',
+              title:"Planificación",
+              drawerLabel:"Planificación",
               drawerIcon: () => <Icon name="calendar" size={24} color="#fff" />,
             }}
           />
           <Drawer.Screen
-            name="ComentariosXClientes"
-            component={ComentariosXClientes}
-            options={{
-              title: 'Comentarios de clientes',
-              drawerIcon: () => <Icon name="comment" size={24} color="#fff" />,
-            }}
-          />
-          <Drawer.Screen
-            name="ClientesPotenciales"
-            component={ClientesPotenciales}
-            options={{
-              title: 'Clientes Potenciales',
-              drawerIcon: () => <Icon name="user" size={24} color="#fff" />,
-            }}
-          />
-          <Drawer.Screen
             name="priceListScreen"
-            component={ProductListScreen}
+            
             options={{
-              title: 'Ventas y cotización',
+              title:"Ventas y cotización",
+              drawerLabel:"Ventas y cotización",
               drawerIcon: () => <Icon name="tags" size={24} color="#fff" />,
             }}
-          />
-          <Drawer.Screen
-            name="dashboard"
-            component={DashboardScreen}
-            options={{
-              title: 'Dashboard',
-              drawerIcon: () => <Icon name="tachometer" size={24} color="#fff" />,
-            }}
-          />
-          <Drawer.Screen
-            name="HistorialComunicacion"
-            component={HistorialComunicacion}
-            options={{
-              title: 'Historial de comunicación',
-              drawerIcon: () => <Icon name="history" size={24} color="#fff" />,
-            }}
+
           />
           <Drawer.Screen
             name="Marketing"
-            component={MarketingModule}
+            
             options={{
-              title: 'Marketing',
+              title:"Marketing",
+              drawerLabel:"Marketing",
               drawerIcon: () => <Icon name="bullhorn" size={24} color="#fff" />,
             }}
+
           />
           <Drawer.Screen
-            name="welcome"
-            component={WelcomeScreen}
+            name="dashboard"
+            
             options={{
-              title: 'Bienvenido',
-              drawerIcon: () => <Icon name="home" size={24} color="#fff" />,
+              title:"Dashboard",
+              drawerLabel:"Dashboard",
+              drawerIcon: () => <Icon name="tachometer" size={24} color="#fff" />,
+            }}
+
+          />
+          <Drawer.Screen
+            name="CuentasXPagar"
+            
+            options={{
+              title:"Cuentas por pagar",
+              drawerLabel: "Cuentas por pagar",
+              drawerItemStyle: { display: 'none' },
+              drawerIcon: () => <Icon name="money" size={24} color="#fff" />,
+            }}
+
+          />
+          <Drawer.Screen
+            name="HistorialComunicacion"
+            
+            options={{
+              title:"Historial de comunicación",
+              drawerLabel:"Historial de comunicación",
+              drawerIcon: () => <Icon name="history" size={24} color="#fff" />,
+            }}
+
+          />
+          <Drawer.Screen
+            name="ComentariosXClientes"
+            
+            options={{
+              title:"Comentarios de clientes",
+              drawerLabel:"Comentarios de clientes",
+              drawerIcon: () => <Icon name="comment" size={24} color="#fff" />,
+            }}
+
+          />
+            <Drawer.Screen
+            name="Empresa"
+            
+            options={{
+              title:"Empresas",
+              drawerLabel:"Empresas",
+              drawerIcon: () => <Icon name="user" size={24} color="#fff" />,
+            }}
+
+          />
+            <Drawer.Screen
+            name="ClientesPotenciales"
+            
+            options={{
+              title:"Clientes",
+              drawerLabel:"Clientes",
+              drawerIcon: () => <Icon name="user" size={24} color="#fff" />,
+            }}
+
+          />
+          <Drawer.Screen
+            name="about"
+            
+            options={{
+              title:"Acerca de",
+              drawerLabel: "Acerca de",
+                            drawerItemStyle: { display: 'none' },
+
+              drawerIcon: () => <Icon name="info" size={24} color="#fff" />,
+            }}
+
+          />
+          <Drawer.Screen
+            name="index"
+            
+            options={{
+              drawerLabel:"Cerrar sesion",
+              // drawerItemStyle: { display: 'none' },
+              drawerIcon: () => <Icon name="sign-in" size={24} color="#fff" />,
             }}
           />
           
-          
-        </Drawer.Navigator>
-        */} 
+        </Drawer>  
       </UserProvider>
       
     </>

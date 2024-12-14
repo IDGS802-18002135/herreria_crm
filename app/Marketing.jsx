@@ -1,305 +1,237 @@
-import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  FlatList,
-  TouchableOpacity,
-  Alert,
-  StyleSheet,
-  ActivityIndicator,
-} from "react-native";
-import { FontAwesome } from "@expo/vector-icons"; // Para usar iconos (FontAwesome)
+import React, { useEffect, useState } from "react";
+import { View, Text, TextInput, Button, FlatList, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
+import axios from "axios";
+import { Picker } from "@react-native-picker/picker";
 
-const API_URL =
-  "https://bazar20241109230927.azurewebsites.net/api/Usuario/getAllEmpleados";
+const Marketing = () => {
+  const [clientesPotenciales, setClientesPotenciales] = useState([]);
+  const [clientesFrecuentes, setClientesFrecuentes] = useState([]);
+  const [productos, setProductos] = useState([]);
+  const [selectedProductoId, setSelectedProductoId] = useState("");
+  const [selectedClientes, setSelectedClientes] = useState([]);
+  const [promoDetails, setPromoDetails] = useState({
+    descripcion: "",
+  });
+  const [vistaActual, setVistaActual] = useState("potenciales");
 
-const MarketingModule = () => {
-  const [clientes, setClientes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [nombrePromocion, setNombrePromocion] = useState("");
-  const [descripcion, setDescripcion] = useState("");
-  const [linkImagen, setLinkImagen] = useState("");
-  const [fechaVencimiento, setFechaVencimiento] = useState("");
-  const [promocionCreada, setPromocionCreada] = useState(false);
-  const [seleccionarClientes, setSeleccionarClientes] = useState(false);
-  const [clientesSeleccionados, setClientesSeleccionados] = useState([]);
+  const normalizeClientes = (clientes, tipo) => {
+    return clientes.map((cliente) => ({
+      id: tipo === "potenciales" ? cliente.clienteId : cliente.usuarioId,
+      nombre:
+        tipo === "potenciales"
+          ? cliente.nombreCliente
+          : cliente.detallesUsuario?.nombres || cliente.nombreUsuario,
+      correo:
+        tipo === "potenciales"
+          ? cliente.correo
+          : cliente.detallesUsuario?.correo || "Sin correo",
+      telefono:
+        tipo === "potenciales"
+          ? cliente.telefono
+          : cliente.detallesUsuario?.telefono || "Sin teléfono",
+    }));
+  };
 
   useEffect(() => {
-    fetchClientes();
+    const fetchClientesPotenciales = async () => {
+      try {
+        const response = await axios.get(
+          "https://bazar20241109230927.azurewebsites.net/api/EmpresaCliente/vista"
+        );
+        setClientesPotenciales(normalizeClientes(response.data, "potenciales"));
+      } catch (error) {
+        alert("Error: No se pudieron cargar los clientes potenciales.");
+      }
+    };
+
+    fetchClientesPotenciales();
   }, []);
 
-  const fetchClientes = async () => {
-    try {
-      const response = await fetch(API_URL);
-      const data = await response.json();
-      const clientesFiltrados = data.filter(
-        (empleado) => empleado.rol === "cliente"
-      );
-      setClientes(clientesFiltrados);
-    } catch (error) {
-      console.error("Error al cargar los datos:", error);
-      Alert.alert("Error", "No se pudieron cargar los datos.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const seleccionarCliente = (cliente) => {
-    setClientesSeleccionados((prevSeleccionados) => {
-      if (prevSeleccionados.includes(cliente.id)) {
-        return prevSeleccionados.filter((id) => id !== cliente.id);
-      } else {
-        return [...prevSeleccionados, cliente.id];
+  useEffect(() => {
+    const fetchClientesFrecuentes = async () => {
+      try {
+        const response = await axios.get(
+          "https://bazar20241109230927.azurewebsites.net/api/Usuario/getAllClientesCom"
+        );
+        setClientesFrecuentes(normalizeClientes(response.data, "frecuentes"));
+      } catch (error) {
+        alert("Error: No se pudieron cargar los clientes frecuentes.");
       }
-    });
+    };
+
+    fetchClientesFrecuentes();
+  }, []);
+
+  useEffect(() => {
+    const fetchProductos = async () => {
+      try {
+        const response = await axios.get(
+          "https://bazar20241109230927.azurewebsites.net/api/Productos"
+        );
+        setProductos(response.data);
+      } catch (error) {
+        alert("Error: No se pudieron cargar los productos.");
+      }
+    };
+
+    fetchProductos();
+  }, []);
+
+  const handleClienteSelect = (clienteId) => {
+    setSelectedClientes((prev) =>
+      prev.includes(clienteId)
+        ? prev.filter((id) => id !== clienteId)
+        : [...prev, clienteId]
+    );
   };
 
-  const renderCliente = ({ item }) => (
-    <View style={styles.clienteCard}>
-      <FontAwesome name="user-circle" size={30} color="#007BFF" style={styles.icon} />
-      <Text style={styles.nombre}>{item.nombre}</Text>
-      <Text style={styles.detalle}>Dirección: {item.direccion}</Text>
-      <Text style={styles.detalle}>Correo: {item.correo}</Text>
-      <Text style={styles.detalle}>Teléfono: {item.telefono}</Text>
-
-      <TouchableOpacity
-        style={styles.boton}
-        onPress={() => seleccionarCliente(item)}
-      >
-        <FontAwesome
-          name={
-            clientesSeleccionados.includes(item.id) ? "check-circle" : "circle-o"
-          }
-          size={20}
-          color="#28A745"
-        />
-        <Text style={styles.botonTexto}>
-          {" "}
-          {clientesSeleccionados.includes(item.id)
-            ? "Desmarcar"
-            : "Marcar para Enviar"}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const enviarPromocionSeleccionados = () => {
-    if (clientesSeleccionados.length === 0) {
-      Alert.alert("Error", "No se han seleccionado clientes.");
+  const handleSendPromo = async () => {
+    if (!selectedProductoId || !promoDetails.descripcion || selectedClientes.length === 0) {
+      alert("Error: Completa los detalles y selecciona al menos un cliente.");
       return;
     }
 
-    Alert.alert(
-      "Confirmación",
-      `¿Deseas enviar la promoción "${nombrePromocion}" a los clientes seleccionados?`,
-      [
-        {
-          text: "Cancelar",
-          style: "cancel",
-        },
-        {
-          text: "Confirmar",
-          onPress: () => {
-            Alert.alert(
-              "Éxito",
-              `Promoción "${nombrePromocion}" enviada a ${clientesSeleccionados.length} cliente(s).`
-            );
-            setClientesSeleccionados([]); // Limpiar la selección
-          },
-        },
-      ]
+    const productoSeleccionado = productos.find(
+      (producto) => producto.id === parseInt(selectedProductoId)
     );
+    const clientesSeleccionados = (vistaActual === "potenciales"
+      ? clientesPotenciales
+      : clientesFrecuentes
+    ).filter((cliente) => selectedClientes.includes(cliente.id));
+
+    const emailRequest = {
+      to: clientesSeleccionados.map((cliente) => cliente.correo).join(","),
+      subject: `Promoción: ${productoSeleccionado.nombreProducto}`,
+      productName: productoSeleccionado.nombreProducto,
+      productImage: productoSeleccionado.imagenProducto,
+      description: promoDetails.descripcion,
+      ClientName: clientesSeleccionados.map((cliente) => cliente.nombre).join(","),
+    };
+
+    try {
+      await axios.post(
+        "https://bazar20241109230927.azurewebsites.net/api/email/sendPromotion",
+        emailRequest
+      );
+      alert("Éxito: Promoción enviada exitosamente.");
+      setSelectedClientes([]);
+      setSelectedProductoId("");
+      setPromoDetails({ descripcion: "" });
+    } catch (error) {
+      alert(
+        `Error: ${error.response?.data || "No se pudo enviar la promoción."}`
+      );
+    }
   };
 
-  const enviarPromocionATodos = () => {
-    Alert.alert(
-      "Confirmación",
-      `¿Deseas enviar la promoción "${nombrePromocion}" a todos los clientes?`,
-      [
-        {
-          text: "Cancelar",
-          style: "cancel",
-        },
-        {
-          text: "Confirmar",
-          onPress: () => {
-            Alert.alert(
-              "Éxito",
-              `Promoción "${nombrePromocion}" enviada a ${clientes.length} cliente(s).`
-            );
-          },
-        },
-      ]
-    );
-  };
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>Promociones de Marketing</Text>
 
-  return promocionCreada ? (
-    <View style={styles.container}>
-      <Text style={styles.titulo}>Seleccionar Clientes</Text>
-      <TouchableOpacity
-        style={styles.botonSeleccion}
-        onPress={() => setSeleccionarClientes(!seleccionarClientes)}
+      <Text style={styles.label}>Producto:</Text>
+      <Picker
+        selectedValue={selectedProductoId}
+        onValueChange={(itemValue) => setSelectedProductoId(itemValue)}
+        style={styles.picker}
       >
-        <Text style={styles.botonTexto}>
-          {seleccionarClientes ? "Enviar a Todos" : "Seleccionar Clientes"}
-        </Text>
-      </TouchableOpacity>
+        <Picker.Item label="Seleccione un producto" value="" />
+        {productos.map((producto) => (
+          <Picker.Item key={producto.id} label={producto.nombreProducto} value={producto.id} />
+        ))}
+      </Picker>
 
-      {seleccionarClientes && (
-        <FlatList
-          data={clientes}
-          renderItem={renderCliente}
-          keyExtractor={(item) => item.id.toString()}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>No hay clientes disponibles.</Text>
+      <Text style={styles.label}>Descripción:</Text>
+      <TextInput
+        style={styles.textarea}
+        value={promoDetails.descripcion}
+        onChangeText={(text) => setPromoDetails({ descripcion: text })}
+        placeholder="Descripción de la promoción"
+        multiline
+      />
+
+      <View style={styles.tabs}>
+        <TouchableOpacity
+          style={[styles.tab, vistaActual === "potenciales" && styles.activeTab]}
+          onPress={() => setVistaActual("potenciales")}
+        >
+          <Text style={styles.tabText}>Clientes Potenciales</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, vistaActual === "frecuentes" && styles.activeTab]}
+          onPress={() => setVistaActual("frecuentes")}
+        >
+          <Text style={styles.tabText}>Clientes Frecuentes</Text>
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={vistaActual === "potenciales" ? clientesPotenciales : clientesFrecuentes}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={[
+              styles.clientRow,
+              selectedClientes.includes(item.id) && styles.selectedClientRow,
+            ]}
+            onPress={() => handleClienteSelect(item.id)}
+          >
+            <Text style={styles.clientText}>{item.nombre}</Text>
+            <Text style={styles.clientText}>{item.correo}</Text>
+            <Text style={styles.clientText}>{item.telefono}</Text>
+          </TouchableOpacity>
+        )}
+      />
+
+      <View style={styles.buttonContainer}>
+        <Button
+          title="Enviar Promoción"
+          onPress={handleSendPromo}
+          disabled={
+            selectedClientes.length === 0 || !selectedProductoId || !promoDetails.descripcion
           }
+          color="#007bff"
         />
-      )}
-
-      {/* Si no estamos en modo selección, mostramos el botón de "Enviar a Todos" */}
-      {!seleccionarClientes && !loading && (
-        <TouchableOpacity
-          style={styles.botonEnviar}
-          onPress={enviarPromocionATodos}
-        >
-          <Text style={styles.botonTexto}>Enviar a Todos</Text>
-        </TouchableOpacity>
-      )}
-
-      {/* Solo mostramos el botón para enviar a clientes seleccionados si hay selección */}
-      {clientesSeleccionados.length > 0 && (
-        <TouchableOpacity
-          style={styles.botonEnviar}
-          onPress={enviarPromocionSeleccionados}
-        >
-          <Text style={styles.botonTexto}>
-            Enviar Promoción ({clientesSeleccionados.length} seleccionados)
-          </Text>
-        </TouchableOpacity>
-      )}
-
-      {loading && <ActivityIndicator size="large" color="#007BFF" />}
-    </View>
-  ) : (
-    <View style={styles.container}>
-      <Text style={styles.titulo}>Crear Promoción</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Nombre de la promoción"
-        value={nombrePromocion}
-        onChangeText={setNombrePromocion}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Descripción"
-        value={descripcion}
-        onChangeText={setDescripcion}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Link de la imagen"
-        value={linkImagen}
-        onChangeText={setLinkImagen}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Fecha de vencimiento"
-        value={fechaVencimiento}
-        onChangeText={setFechaVencimiento}
-      />
-
-      <TouchableOpacity
-        style={styles.botonCrear}
-        onPress={() => setPromocionCreada(true)}
-      >
-        <Text style={styles.botonTexto}>Crear Promoción</Text>
-      </TouchableOpacity>
-    </View>
+      </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#F0F0F0",
-  },
-  titulo: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-    textAlign: "center",
-    color: "#333",
-  },
-  input: {
-    height: 40,
-    borderColor: "#007BFF",
+  container: { padding: 16 },
+  title: { fontSize: 20, fontWeight: "bold", marginBottom: 16 },
+  label: { fontSize: 16, marginBottom: 8 },
+  picker: { height: 50, marginBottom: 16 },
+  textarea: {
+    height: 100,
+    borderColor: "#ccc",
     borderWidth: 1,
-    borderRadius: 5,
-    marginBottom: 12,
-    paddingLeft: 10,
-    backgroundColor: "#FFF",
-  },
-  botonCrear: {
-    backgroundColor: "#28A745",
-    padding: 12,
-    borderRadius: 5,
-    alignItems: "center",
-  },
-  botonSeleccion: {
-    backgroundColor: "#007BFF",
-    padding: 12,
-    borderRadius: 5,
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  botonEnviar: {
-    backgroundColor: "#FF5733",
-    padding: 12,
-    borderRadius: 5,
-    alignItems: "center",
-    marginTop: 20,
-  },
-  botonTexto: {
-    color: "#FFF",
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  clienteCard: {
-    backgroundColor: "#FFF",
-    padding: 15,
-    marginBottom: 10,
-    borderRadius: 8,
-    elevation: 3,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  icon: {
-    marginRight: 10,
-  },
-  nombre: {
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  detalle: {
-    fontSize: 12,
-    color: "#666",
-  },
-  boton: {
-    marginTop: 10,
-    flexDirection: "row",
-    alignItems: "center",
     padding: 8,
-    backgroundColor: "#E1F5FE",
-    borderRadius: 5,
+    marginBottom: 16,
   },
-  emptyText: {
-    textAlign: "center",
-    color: "#888",
-    marginTop: 20,
+  tabs: { flexDirection: "row", marginBottom: 16 },
+  tab: { flex: 1, padding: 8, alignItems: "center", borderBottomWidth: 2 },
+  activeTab: { borderBottomColor: "blue" },
+  tabText: { fontSize: 16 },
+  clientRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    padding: 8,
+    backgroundColor: "#f9f9f9",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 4,
+  },
+  selectedClientRow: {
+    backgroundColor: "#cce5ff",
+    borderColor: "#007bff",
+  },
+  clientText: { flex: 1 },
+  buttonContainer: {
+    marginTop: 16,
+    marginBottom: 16,
+    alignItems: "center",
   },
 });
 
-export default MarketingModule;
+export default Marketing;

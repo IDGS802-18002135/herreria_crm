@@ -5,6 +5,7 @@ import { agregarProducto, calcularSubtotal, generarPDF } from '../utils/producto
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker'; // Importar Picker
 import * as Notifications from 'expo-notifications';
+
 import { useNavigation } from '@react-navigation/native'; 
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -22,15 +23,19 @@ export default function ProductListScreen() {
     const [mostrarModal, setMostrarModal] = useState(false);
     const [contenidoModal, setContenidoModal] = useState("");
     const [nombreEmpresa, setNombreEmpresa] = useState("");
-    const [idEmpresa, setIdEmpresa] = useState("");
+    //const [idEmpresa, setIdEmpresa] = useState("");
     const [empresa, setEmpresa] = useState(null);
+    const [empresas, setEmpresas] = useState([]); // Lista de empresas
+    const [idEmpresaSeleccionada, setIdEmpresaSeleccionada] = useState(null); // ID de la empresa seleccionada
+    const [empresaSeleccionada, setEmpresaSeleccionada] = useState(null); // Objeto completo de la empresa seleccionada
+
     
     const [vendedor, setVendedor] = useState("");
     const [mostrarModalDatos, setMostrarModalDatos] = useState(false);
     const [cotizacionesPendientes, setCotizacionesPendientes] = useState([]);
     const [mostrarModalCotizaciones, setMostrarModalCotizaciones] = useState(false);
     const [busqueda, setBusqueda] = useState("");
-    const [empresas, setEmpresas] = useState([]); // Para almacenar las empresas disponibles
+
     const [userData, setUserData] = useState(null);
     const navigation = useNavigation();
 
@@ -38,12 +43,11 @@ export default function ProductListScreen() {
         // Listener para manejar la interacción con la notificación
         const subscription = Notifications.addNotificationResponseReceivedListener(response => {
             const data = response.notification.request.content.data;
-            console.log('Notificación interactuada con data:', data);
-
+            
+            setMostrarModalCotizaciones(false);
+            setMostrarModalDatos(false);
             // Redirigir al módulo correspondiente
-            if (data.screen) {
-                navigation.navigate(data.screen, { id: data.id }); // Pasa parámetros si es necesario
-            }
+            
         });
 
         // Limpia el listener cuando el componente se desmonte
@@ -74,12 +78,12 @@ export default function ProductListScreen() {
   //guardar cotizacion 
     // Cargar productos desde la nueva API
     useEffect(() => {
-        fetch('http://192.168.0.108:5055/api/Inventario/productos')
+        fetch('https://bazar20241109230927.azurewebsites.net/api/Inventario/productos')
             .then((response) => response.json())
             .then((data) => {
                 const productosConImagen = data.map((producto) => ({
                     ...producto,
-                    imagen: producto.imagenProducto || "https://ralfvanveen.com/wp-content/uploads/2021/06/Placeholder-_-Glossary-800x450.webp",
+                    imagen: producto.imagen || "https://ralfvanveen.com/wp-content/uploads/2021/06/Placeholder-_-Glossary-800x450.webp",
                 }));
                 console.log("PRODUCTOS: ",data);
                 setProductos(productosConImagen);
@@ -93,7 +97,7 @@ export default function ProductListScreen() {
     const cargarCotizaciones = async () => {
         try {
             console.log("AAAAAAAAAAAAAAAAA");
-            const response = await fetch('http://192.168.0.108:5055/api/Cotizaciones/getAll');
+            const response = await fetch('https://bazar20241109230927.azurewebsites.net/api/Cotizaciones/getAll');
 
             if (response.ok) {
                 const data = await response.json();
@@ -112,20 +116,19 @@ export default function ProductListScreen() {
     }, []);
 
     // Cargar lista de empresas desde la API
+    
+    // Cargar las empresas desde la API
     useEffect(() => {
         fetch('https://bazar20241109230927.azurewebsites.net/api/EmpresaCliente/vista')
             .then((response) => response.json())
             .then((data) => {
-                setEmpresas(data); // Guardar todas las empresas
-                // Seleccionar la primera empresa por defecto, si existe
-                const empresaSeleccionada = data.find(cliente => cliente.nombreEmpresa !== "Sin Empresa");
-                console.log(empresas);
-                if (empresaSeleccionada) {
-                    setNombreEmpresa(empresaSeleccionada.nombreEmpresa);
-                    setEmpresa(empresaSeleccionada);
-                    setIdEmpresa(empresaSeleccionada.empresaId);
-                } else {
-                    setNombreEmpresa("Sin Empresa");
+                setEmpresas(data);
+
+                // Seleccionar la primera empresa válida por defecto
+                if (data.length > 0) {
+                    const empresaPorDefecto = data[0];
+                    setIdEmpresaSeleccionada(empresaPorDefecto.empresaId);
+                    setEmpresaSeleccionada(empresaPorDefecto);
                 }
             })
             .catch((error) => {
@@ -141,14 +144,96 @@ export default function ProductListScreen() {
     const handleAgregarProducto = (productoId, cantidad) => {
         agregarProducto(productoId, cantidad, productos, setProductos, setProductosSeleccionados);
     };
-    const cambiarStatusCotizacion=async()=>{
+    const handleEmpresaChange = (idEmpresa) => {
+        setIdEmpresaSeleccionada(idEmpresa);
 
-    }
-
+        // Buscar la empresa seleccionada por su ID
+        const seleccionada = empresas.find((empresa) => empresa.empresaId === idEmpresa);
+        setEmpresaSeleccionada(seleccionada || null);
+    };
+    const cambiarStatusCotizacion = async (cotizacion, nuevoStatus) => {
+        try {
+            // Verificar si la cotización ya está autorizada
+            if (cotizacion.status === 1) {
+                alert(`La cotización ${cotizacion.cotizacionId} ya está autorizada y no se puede autorizar nuevamente.`);
+                return;
+            }
+    
+            const url = `https://bazar20241109230927.azurewebsites.net/api/Cotizaciones/${cotizacion.cotizacionId}/status`;
+    
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(nuevoStatus),
+            });
+    
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Error al cambiar el estado: ${errorText}`);
+            }
+    
+            const data = await response.text();
+            console.log('Estado actualizado:', data);
+            alert(`Estado de la cotización ha cambiado a ${getStatusLabel(nuevoStatus)}`);
+    
+            // Si el nuevo estado es "Autorizado" (1), registrar la venta
+            if (nuevoStatus === 1) {
+                await registrarVenta(cotizacion);
+            }
+        } catch (error) {
+            console.error('Error al cambiar el estado:', error);
+            alert(`Hubo un error al cambiar el estado: ${error.message}`);
+        }
+    };
+    const registrarVenta = async (cotizacion) => {
+        try {
+            // Construir la URL del endpoint
+            const url = 'https://bazar20241109230927.azurewebsites.net/api/Venta/PostVenta';
+    
+            // Transformar los datos de la cotización al formato esperado por el endpoint
+            const ventaData = {
+                folio: `COT-${cotizacion.cotizacionId}`, // Usamos el ID de la cotización como folio
+                usuarioId: cotizacion.idVendedor, // ID del vendedor que autorizó
+                detallesVenta: cotizacion.detalleCotizacions.map((detalle) => ({
+                    cantidad: detalle.cantidad,
+                    precioUnitario: detalle.precioUnitario,
+                    inventarioProductoId: detalle.inventarioProductoId,
+                    clientePotencialDescuento: 0, // Puedes ajustar esto según sea necesario
+                })),
+            };
+    
+            // Realizar la solicitud POST al endpoint
+            const response = await fetch(url, {
+                method: 'POST', // Método HTTP POST
+                headers: {
+                    'Content-Type': 'application/json', // Indicar que enviamos JSON
+                },
+                body: JSON.stringify(ventaData), // Convertir el objeto a JSON
+            });
+    
+            // Verificar si la solicitud fue exitosa
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Error al registrar la venta: ${errorText}`);
+            }
+    
+            const data = await response.json(); // Leer la respuesta del servidor
+            console.log('Venta registrada exitosamente:', data);
+            cargarCotizaciones();
+    
+            // Notificar al usuario
+            alert(`La venta con folio ${ventaData.folio} ha sido registrada exitosamente.`);
+        } catch (error) {
+            console.error('Error al registrar la venta:', error);
+            alert(`Hubo un error al registrar la venta: ${error.message}`);
+        }
+    };
      const guardarCotizacion = async () => {
-        console.log('Guardando ',empresa.empresaId);
-        console.log('Guardando ',empresa.clienteId);
-        console.log('Guardando ',userData.nombre);
+        
+     
+        
         console.log('Guardando ',productosSeleccionados.reduce((total, producto) => 
             total + producto.precio * producto.cantidad, 0));
         console.log("Guardando",productosSeleccionados.map((producto) => ({
@@ -157,10 +242,10 @@ export default function ProductListScreen() {
             precioUnitario: producto.precio,  // Precio unitario del producto
             costo: producto.precio * producto.cantidad})));
         
-        console.log('Guardando ',productosSeleccionados);
+        console.log(empresaSeleccionada)
         const nuevaCotizacion = {
-            empresaID: empresa.empresaId,  // Asignar un valor válido
-            clienteID: empresa.clienteId,  // Asignar un valor válido
+            empresaID: empresaSeleccionada.empresaId,  // Asignar un valor válido
+            clienteID: empresaSeleccionada.clienteId,  // Asignar un valor válido
             vendedor: userData.nombre,
             idVendedor: userData.id,  // Asignar el ID del vendedor
             total: productosSeleccionados.reduce((total, producto) => 
@@ -177,7 +262,7 @@ export default function ProductListScreen() {
         try {
             console.log('queeeee');
             // Llamada POST para guardar la cotización
-            const response = await fetch('http://192.168.0.108:5055/api/Cotizaciones', {
+            const response = await fetch('https://bazar20241109230927.azurewebsites.net/api/Cotizaciones', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -199,16 +284,15 @@ export default function ProductListScreen() {
         }
     };
     
-    const handleGenerarPDF = () => {
-        if (productosSeleccionados.length === 0) {
+    const handleGenerarPDF = (cotizacion) => {
+        /* if (productosSeleccionados.length === 0) {
             alert("El carrito está vacío. Agrega productos antes de generar una cotización.");
             return; // Salir de la función si el carrito está vacío
-        }
+        }*/
          
-        generarPDF(productosSeleccionados, nombreEmpresa, vendedor, calcularSubtotal);
-        setProductosSeleccionados([]); // Limpia el carrito al generar la cotización
-        setMostrarLista(false);
-        setMostrarModalDatos(false);
+       // generarPDF(productosSeleccionados, nombreEmpresa, vendedor, calcularSubtotal);
+       
+       generarPDF(cotizacion);
         
     };
     const handleGuardarCotizacion=()=>{
@@ -252,6 +336,7 @@ export default function ProductListScreen() {
 
     return (
         <View style={styles.container}>
+      
             <Text style={styles.title}>Lista de Productos</Text>
             
             {/* Campo de búsqueda */}
@@ -290,7 +375,7 @@ export default function ProductListScreen() {
                     ))}
                     <Text style={styles.subtotal}>Subtotal: ${calcularSubtotal(productosSeleccionados)}</Text>
                     <View style={styles.buttonContainer}>
-                        <Button title="Finalizar Compra" onPress={() => setMostrarModalDatos(true)} color="#4CAF50" />
+                        
                         <Button title="Generar Cotización" onPress={() => setMostrarModalDatos(true)} color="#2196F3" />
                     </View>
                 </View>
@@ -337,9 +422,23 @@ export default function ProductListScreen() {
                 ))}
 
                 <Button
-                  title="Autorizar"
-                  color="#4CAF50"
-                  onPress={() => autorizarCotizacion(cotizacion.cotizacionId)}
+                title="Autorizar registrar venta"
+                color={cotizacion.status === 1 ? '#CCCCCC' : '#4CAF50'} // Color diferente si está deshabilitado
+                disabled={cotizacion.status === 1}
+                onPress={() => cambiarStatusCotizacion(cotizacion, 1)}
+                />
+                <Button
+                title="Rechazar"
+                color={ 'red'} // Color diferente si está deshabilitado
+                disabled={cotizacion.status === 2||cotizacion.status === 1}
+                onPress={() =>   cambiarStatusCotizacion(cotizacion, 2)}
+                />
+                 <Button style={{ marginTop: 50 }}
+                title="Generar PDF"
+                
+                color={'blue'} // Color diferente si está deshabilitado
+                
+                onPress={() => handleGenerarPDF(cotizacion)}
                 />
               </View>
             ))}
@@ -365,18 +464,18 @@ export default function ProductListScreen() {
                         
                         {/* Selector de empresa */}
                         <Text style={styles.label}>Selecciona la empresa:</Text>
-                        <Picker
-                            selectedValue={nombreEmpresa}
-                            onValueChange={(itemValue) => setNombreEmpresa(itemValue)}
-                        >
-                            {empresas.map((empresa, index) => (
-                                <Picker.Item
-                                    key={index}
-                                    label={empresa.nombreEmpresa}
-                                    value={empresa.nombreEmpresa}
-                                />
-                            ))}
-                        </Picker>
+            <Picker
+                selectedValue={idEmpresaSeleccionada}
+                onValueChange={handleEmpresaChange} // Usamos el ID como value
+            >
+                {empresas.map((empresa) => (
+                    <Picker.Item
+                        key={empresa.empresaId}
+                        label={empresa.nombreEmpresa}
+                        value={empresa.empresaId} // ID de la empresa como valor
+                    />
+                ))}
+            </Picker>
 
                         {/* Campo para el vendedor */}
                         <TextInput
@@ -389,7 +488,7 @@ export default function ProductListScreen() {
                         />
                         
                         <View style={styles.buttonContainer}>
-                            <Button title="Generar PDF" onPress={handleGenerarPDF} color="#4CAF50" />
+                          
                             <Button title="Guardar Cotizacion" onPress={handleGuardarCotizacion} color="#4CAF50" />
                             
                         </View>

@@ -1,256 +1,314 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  ActivityIndicator,
-  Alert,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-} from 'react-native';
+import React, { useState, useEffect } from "react";
+import { View, Text, TextInput, Button, Alert, FlatList, StyleSheet, TouchableOpacity } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+import { Picker } from "@react-native-picker/picker"; 
 
 interface Cliente {
-  clienteId: string | number;
+  clienteId: number;
   nombreCliente: string;
   nombreEmpresa: string;
   correo: string;
   telefono: string;
-  direccion: string;
   estatus: number;
 }
 
-interface FormData {
-  NombreCliente: string;
-  DireccionCliente: string;
-  TelefonoCliente: string;
-  CorreoCliente: string;
-  RedesSociales: string;
-  Origen: string;
-  PreferenciaComunicacion: string;
-  UsuarioId: string;
-  NombreEmpresa: string;
-  DireccionEmpresa: string;
-  TelefonoEmpresa: string;
-  CorreoEmpresa: string;
-  SitioWeb: string;
+interface Empresa {
+  empresaId: string;
+  nombre: string;
 }
 
-const ClientesPotenciales = () => {
+const ClientesPotenciales: React.FC = () => {
   const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [filteredClientes, setFilteredClientes] = useState<Cliente[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<number | null>(null); // ID del usuario logueado
-  const [formData, setFormData] = useState<FormData>({
-    NombreCliente: '',
-    DireccionCliente: '',
-    TelefonoCliente: '',
-    CorreoCliente: '',
-    RedesSociales: '',
-    Origen: 'Encontrado por defecto',
-    PreferenciaComunicacion: '',
-    UsuarioId: '',
-    NombreEmpresa: '',
-    DireccionEmpresa: '',
-    TelefonoEmpresa: '',
-    CorreoEmpresa: '',
-    SitioWeb: '',
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showRegisterForm, setShowRegisterForm] = useState(false);
+  const [formData, setFormData] = useState({
+    nombre: "",
+    direccion: "",
+    telefono: "",
+    correo: "",
+    redesSociales: "",
+    origen: "",
+    preferenciaComunicacion: "",
+    usuarioId: 0,
+    empresaId: "",
   });
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [userData, setUserData] = useState<any>(null); // Estado para almacenar los datos del usuario
+
+  useEffect(() => {
+    // Obtención de datos del usuario desde AsyncStorage
+    const getUserData = async () => {
+      const storedUserData = await AsyncStorage.getItem('userData');
+      console.log(storedUserData); // Puedes quitar este console.log en producción
+      if (storedUserData) {
+        const parsedUserData = JSON.parse(storedUserData);
+        setUserData(parsedUserData); // Asignamos los datos del usuario al estado
+        setFormData((prevFormData) => ({
+          ...prevFormData,
+          usuarioId: parsedUserData.id, // Establecemos el usuarioId en el formulario
+        }));
+      }
+    };
+
+    // Llamamos la función para obtener los datos del usuario
+    getUserData();
+
+    // Llamada a fetchClientes y fetchEmpresas para obtener los clientes y empresas
+    fetchClientes();
+    fetchEmpresas();
+  }, []);
 
   const fetchClientes = async () => {
-    setLoading(true);
     try {
-      const response = await fetch('https://bazar20241109230927.azurewebsites.net/api/EmpresaCliente/vista');
-      if (!response.ok) throw new Error('Error al cargar los clientes.');
-      const data = await response.json();
-      setClientes(data);
-      setFilteredClientes(data);
-    } catch (error) {
-      Alert.alert('Error', `Error al cargar los clientes: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSearch = (text: string) => {
-    setSearchTerm(text);
-    if (text) {
-      const filtered = clientes.filter(cliente =>
-        cliente.nombreCliente.toLowerCase().includes(text.toLowerCase()) ||
-        cliente.nombreEmpresa.toLowerCase().includes(text.toLowerCase()) ||
-        cliente.clienteId.toString().includes(text)
+      const response = await axios.get(
+        "https://bazar20241109230927.azurewebsites.net/api/EmpresaCliente/vista"
       );
-      setFilteredClientes(filtered);
-    } else {
-      setFilteredClientes(clientes);
+      setClientes(response.data);
+    } catch (error) {
+      console.error("Error fetching clientes", error);
     }
   };
 
-  const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const fetchEmpresas = async () => {
+    try {
+      const response = await axios.get(
+        "https://bazar20241109230927.azurewebsites.net/api/EmpresaCliente/empresas"
+      );
+      setEmpresas(response.data);
+    } catch (error) {
+      console.error("Error fetching empresas", error);
+    }
+  };
+
+  const handleSearch = async (text: string) => {
+    setSearchTerm(text);
+    try {
+      const response = await axios.get(
+        `https://bazar20241109230927.azurewebsites.net/api/EmpresaCliente/buscar?searchTerm=${text}`
+      );
+      setClientes(response.data);
+    } catch (error) {
+      console.error("Error searching clientes", error);
+    }
+  };
+
+  const handleStatusChange = async (clienteId: number, currentStatus: number) => {
+    const newStatus = currentStatus === 1 ? 2 : 1;
+
+    Alert.alert(
+      "Confirmar",
+      "¿Seguro que deseas cambiar el estatus?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Sí",
+          onPress: async () => {
+            try {
+              const payload = { estatusCliente: newStatus };
+              await axios.put(
+                `https://bazar20241109230927.azurewebsites.net/api/EmpresaCliente/change-status/${clienteId}`,
+                payload
+              );
+              fetchClientes();
+              Alert.alert("¡Éxito!", "El estatus ha sido cambiado.");
+            } catch (error) {
+              console.error("Error al cambiar el estatus:", error);
+              Alert.alert("Error", "No se pudo cambiar el estatus.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDetails = async (clienteId: number) => {
+    try {
+      const response = await axios.get(
+        `https://bazar20241109230927.azurewebsites.net/api/EmpresaCliente/detalles/${clienteId}`
+      );
+      const { cliente, empresa } = response.data;
+      Alert.alert(
+        `Detalles de ${cliente.nombre}`,
+        `Dirección: ${cliente.direccion}\nTeléfono: ${cliente.telefono}\nCorreo: ${cliente.correo}\nRedes Sociales: ${cliente.redesSociales}\nOrigen: ${cliente.origen}\nPreferencia de Comunicación: ${cliente.preferenciaComunicacion}\nEmpresa: ${empresa ? empresa.nombre : "Sin Empresa"}`
+      );
+    } catch (error) {
+      console.error("Error fetching details", error);
+      Alert.alert("Error", "No se pudieron obtener los detalles del cliente.");
+    }
   };
 
   const handleRegister = async () => {
-    try {
-      const response = await fetch('https://bazar20241109230927.azurewebsites.net/api/EmpresaCliente/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      if (!response.ok) throw new Error('Error al registrar cliente.');
-      const data = await response.text();
-      Alert.alert('Éxito', data);
-
-      const newCliente = { ...formData, clienteId: Date.now() };
-      setClientes([newCliente, ...clientes]);
-      setFilteredClientes([newCliente, ...filteredClientes]);
-
-      setShowForm(false);
-    } catch (error: any) {
-      Alert.alert('Error', `Error al registrar: ${error.message || 'No se pudo registrar.'}`);
+    if (!formData.nombre || !formData.telefono || !formData.correo) {
+      Alert.alert("Error", "Por favor complete todos los campos obligatorios.");
+      return;
     }
-  };
 
-  const handleCancel = () => {
-    setFormData({
-      NombreCliente: '',
-      DireccionCliente: '',
-      TelefonoCliente: '',
-      CorreoCliente: '',
-      RedesSociales: '',
-      Origen: 'Encontrado por defecto',
-      PreferenciaComunicacion: '',
-      UsuarioId: currentUserId ? currentUserId.toString() : '',
-      NombreEmpresa: '',
-      DireccionEmpresa: '',
-      TelefonoEmpresa: '',
-      CorreoEmpresa: '',
-      SitioWeb: '',
-    });
-    setShowForm(false);
-  };
+    // Verifica los datos antes de enviarlos
+    console.log("Datos a registrar:", formData);
 
-  const handleUpdate = (clienteId: string | number) => {
-    const clienteToUpdate = clientes.find(cliente => cliente.clienteId === clienteId);
-    if (clienteToUpdate) {
-      setFormData({
-        NombreCliente: clienteToUpdate.nombreCliente || '',
-        DireccionCliente: clienteToUpdate.direccion || '',
-        TelefonoCliente: clienteToUpdate.telefono || '',
-        CorreoCliente: clienteToUpdate.correo || '',
-        RedesSociales: '',
-        Origen: 'Encontrado por defecto',
-        PreferenciaComunicacion: '',
-        UsuarioId: currentUserId ? currentUserId.toString() : '',
-        NombreEmpresa: clienteToUpdate.nombreEmpresa || '',
-        DireccionEmpresa: clienteToUpdate.direccion || '',
-        TelefonoEmpresa: clienteToUpdate.telefono || '',
-        CorreoEmpresa: clienteToUpdate.correo || '',
-        SitioWeb: '',
-      });
-      setShowForm(true);
-    }
-  };
-
-  const handleChangeStatus = async (clienteId: string | number, currentStatus: number) => {
     try {
-      const newStatus = currentStatus === 1 ? 2 : 1;
-      const response = await fetch(`http://http://192.168.0.108:5055/api/EmpresaCliente/change-status/${clienteId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estatusCliente: newStatus }),
-      });
-      if (!response.ok) throw new Error('Error al cambiar el estatus.');
-      Alert.alert('Éxito', 'Estatus actualizado');
+      const response = await axios.post(
+        "https://bazar20241109230927.azurewebsites.net/api/EmpresaCliente/registercliente",
+        formData,
+        {
+          headers: {
+            'Content-Type': 'application/json', // Asegura que se envíe como JSON
+          },
+        }
+      );
+
+      // Verifica la respuesta de la API
+      console.log("Respuesta de la API:", response.data);
+
+      // Si la respuesta fue exitosa, actualizar la lista de clientes
       fetchClientes();
+
+      // Muestra una alerta de éxito
+      Alert.alert("¡Éxito!", "Cliente registrado correctamente.");
+
+      // Cierra el formulario de registro
+      setShowRegisterForm(false);
     } catch (error) {
-      Alert.alert('Error', `Error al cambiar estatus: ${error.message}`);
+      // Muestra errores específicos dependiendo del tipo de error
+      if (error.response) {
+        console.error("Error de respuesta del servidor:", error.response.data);
+        Alert.alert("Error", "Error de servidor: " + error.response.data);
+      } else if (error.request) {
+        console.error("No se recibió respuesta del servidor:", error.request);
+        Alert.alert("Error", "No se pudo conectar al servidor.");
+      } else {
+        console.error("Error al configurar la solicitud:", error.message);
+        Alert.alert("Error", "Error en la solicitud: " + error.message);
+      }
     }
   };
-
-  useEffect(() => {
-    fetchClientes();
-    const userIdFromLogin = 123;
-    setCurrentUserId(userIdFromLogin);
-
-    if (userIdFromLogin && !formData.UsuarioId) {
-      setFormData(prev => ({ ...prev, UsuarioId: userIdFromLogin.toString() }));
-    }
-  }, []);
 
   return (
     <View style={styles.container}>
-      {!showForm ? (
+      {!showRegisterForm ? (
         <>
+          <Text style={styles.header}>Clientes Potenciales</Text>
           <TextInput
-            style={styles.searchInput}
-            placeholder="Buscar cliente o empresa"
+            style={styles.input}
+            placeholder="Buscar..."
             value={searchTerm}
             onChangeText={handleSearch}
           />
+          <Button
+            title="Registrar Cliente"
+            onPress={() => setShowRegisterForm(true)}
+          />
 
-          <TouchableOpacity style={styles.addButton} onPress={() => setShowForm(true)}>
-            <Text style={styles.buttonText}>Registrar Cliente</Text>
-          </TouchableOpacity>
-
-          {loading ? (
-            <ActivityIndicator size="large" color="#007bff" />
-          ) : (
-            <FlatList
-              data={filteredClientes}
-              keyExtractor={item => item.clienteId.toString()}
-              renderItem={({ item }) => (
-                <View style={styles.card}>
-                  <Text style={styles.cardTitle}>{item.nombreCliente}</Text>
-                  <Text style={styles.cardSubtitle}>{item.nombreEmpresa}</Text>
-                  <Text>Correo: {item.correo}</Text>
-                  <Text>Teléfono: {item.telefono}</Text>
-                  <Text>Dirección: {item.direccion}</Text>
-
-                  <TouchableOpacity
-                    style={[styles.button, { backgroundColor: item.estatus === 2 ? 'red' : '#007bff' }]}
-                    onPress={() => handleChangeStatus(item.clienteId, item.estatus)}
-                  >
-                    <Text style={styles.buttonText}>
-                      {item.estatus === 2 ? 'Activar' : 'Desactivar'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.button}
-                    onPress={() => handleUpdate(item.clienteId)}
-                  >
-                    <Text style={styles.buttonText}>Actualizar</Text>
-                  </TouchableOpacity>
+          <FlatList
+            data={clientes}
+            keyExtractor={(item) => item.clienteId.toString()}
+            renderItem={({ item }) => (
+              <View
+                style={[
+                  styles.card,
+                  item.estatus === 1 ? styles.active : styles.inactive,
+                ]}
+              >
+                <Text>{item.nombreCliente}</Text>
+                <Text>Empresa: {item.nombreEmpresa || "Sin Empresa"}</Text>
+                <Text>Correo: {item.correo}</Text>
+                <Text>Teléfono: {item.telefono}</Text>
+                <View style={styles.actions}>
+                  <Button
+                    title="Cambiar Estatus"
+                    onPress={() => handleStatusChange(item.clienteId, item.estatus)}
+                  />
+                  <Button
+                    title="Ver Detalles"
+                    onPress={() => handleDetails(item.clienteId)}
+                  />
                 </View>
-              )}
-            />
-          )}
+              </View>
+            )}
+          />
         </>
       ) : (
-        <ScrollView>
-          <Text style={styles.formTitle}>Registro de Cliente y Empresa</Text>
-          {Object.keys(formData).map(key => (
-            <TextInput
-              key={key}
-              style={styles.input}
-              placeholder={key.replace(/([A-Z])/g, ' $1')}
-              value={(formData as any)[key] || ''}
-              onChangeText={text => handleChange(key, text)}
-            />
-          ))}
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity style={styles.registerButton} onPress={handleRegister}>
-              <Text style={styles.buttonText}>Registrar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-              <Text style={styles.buttonText}>Cancelar</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
+        <View>
+          <Text style={styles.header}>Registrar Cliente</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Nombre"
+            value={formData.nombre}
+            onChangeText={(text) => setFormData({ ...formData, nombre: text })}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Dirección"
+            value={formData.direccion}
+            onChangeText={(text) =>
+              setFormData({ ...formData, direccion: text })
+            }
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Teléfono"
+            value={formData.telefono}
+            onChangeText={(text) =>
+              setFormData({ ...formData, telefono: text })
+            }
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Correo"
+            value={formData.correo}
+            onChangeText={(text) =>
+              setFormData({ ...formData, correo: text })
+            }
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Redes Sociales"
+            value={formData.redesSociales}
+            onChangeText={(text) =>
+              setFormData({ ...formData, redesSociales: text })
+            }
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Origen"
+            value={formData.origen}
+            onChangeText={(text) =>
+              setFormData({ ...formData, origen: text })
+            }
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Preferencia de Comunicación"
+            value={formData.preferenciaComunicacion}
+            onChangeText={(text) =>
+              setFormData({ ...formData, preferenciaComunicacion: text })
+            }
+          />
+
+          <Picker
+            selectedValue={formData.empresaId}
+            onValueChange={(itemValue) =>
+              setFormData({ ...formData, empresaId: itemValue })
+            }
+            style={styles.input}
+          >
+            <Picker.Item label="Seleccione una empresa" value="" />
+            {empresas.map((empresa) => (
+              <Picker.Item
+                key={empresa.empresaId}
+                label={empresa.nombre}
+                value={empresa.empresaId}
+              />
+            ))}
+          </Picker>
+
+          <Button title="Registrar" onPress={handleRegister} />
+          <Button
+            title="Cancelar"
+            onPress={() => setShowRegisterForm(false)}
+          />
+        </View>
       )}
     </View>
   );
@@ -259,78 +317,36 @@ const ClientesPotenciales = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    padding: 20,
   },
-  searchInput: {
-    height: 40,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingLeft: 8,
-    marginBottom: 16,
-  },
-  addButton: {
-    backgroundColor: '#007bff',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  card: {
-    backgroundColor: '#f9f9f9',
-    padding: 16,
-    marginBottom: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  cardSubtitle: {
-    fontSize: 14,
-    color: '#555',
-  },
-  button: {
-    backgroundColor: '#007bff',
-    padding: 10,
-    borderRadius: 8,
-    marginVertical: 4,
-  },
-  formTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 16,
+  header: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 20,
   },
   input: {
-    height: 40,
-    borderColor: '#ccc',
     borderWidth: 1,
-    borderRadius: 8,
-    marginBottom: 12,
-    paddingLeft: 8,
+    borderColor: "#ccc",
+    borderRadius: 5,
+    padding: 10,
+    marginBottom: 10,
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  card: {
+    padding: 15,
+    marginVertical: 10,
+    borderWidth: 1,
+    borderRadius: 5,
   },
-  registerButton: {
-    backgroundColor: '#28a745',
-    padding: 12,
-    borderRadius: 8,
-    flex: 1,
-    marginRight: 8,
+  active: {
+    borderColor: "green",
   },
-  cancelButton: {
-    backgroundColor: '#dc3545',
-    padding: 12,
-    borderRadius: 8,
-    flex: 1,
+  inactive: {
+    borderColor: "red",
+  },
+  actions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
   },
 });
 

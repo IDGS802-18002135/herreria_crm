@@ -30,7 +30,7 @@ const WelcomeScreen = () => {
     {
       icon: 'industry',  // Registrar Empresa
       title: 'Registrar Empresa',
-      screen: 'RegistrarClienteEmpresa',
+      screen: 'ClientesPotenciales',
     },
     {
       icon: 'user-plus',  // Registro Cliente
@@ -60,10 +60,10 @@ const WelcomeScreen = () => {
     <View style={styles.wrapper}>
       {userData ? (
         <View style={styles.userInfo}>
-          <Text style={styles.userInfoText}>Nombre: {userData.nombre}</Text>
-          <Text style={styles.userInfoText}>Rol: {userData.rol}</Text>
+          <Text style={styles.userInfoText}>Bienvenido : {userData.nombre}</Text>
+          {/* <Text style={styles.userInfoText}>Rol: {userData.rol}</Text>
           <Text style={styles.userInfoText}>Estatus: {userData.estatus === 1 ? 'Activo' : 'Inactivo'}</Text>
-          <Text style={styles.userInfoText}>Dirección: {userData.direccion}</Text>
+          <Text style={styles.userInfoText}>Dirección: {userData.direccion}</Text> */}
         </View>
       ) : (
         <Text>Loading...</Text>
